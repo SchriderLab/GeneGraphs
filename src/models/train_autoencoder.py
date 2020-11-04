@@ -90,8 +90,12 @@ def main():
             if args.variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
 
+            print('Epoch {0}, step {1}: got loss of {2}'.format(i, j, loss.item()))
+
             loss.backward()
             optimizer.step()
+
+        generator.on_epoch_end()
 
 
 if __name__ == '__main__':

@@ -27,5 +27,8 @@ class DataGeneratorAE(object):
 
         return batch
 
+    def on_epoch_end(self):
+        self.keys = list(self.ifile.keys())
+
 
 
