@@ -1,0 +1,7 @@
+# these are the versions I am using but other ones may work as well (if I don't list a version just try the latest)
+torch==1.4.0+cu100
+torch_geometric==1.6.1
+networkx==2.4
+h5py
+msprime
+tskit
