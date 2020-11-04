@@ -8,7 +8,9 @@ Work in progress.  To do:
 - [ ] Make other classifiers temporal and otherwise and potentially other auto-encoders
 - [ ] Add flexibility for node and edge features (right now: node features (time (0 to 1) + hot encoded population), no edge features for now)
 
-Generate some graphs with msprime:
+Generate some graphs with msprime (Choices of demographic model to simulate are `constant`, `growth`, `reduction`, `constant_2pop`, 
+`constant_3pop`, `single_pulse_uni_AB`, `single_pulse_uni_BA`, `single_pulse_bi`, `multi_pulse_uni_AB`, 
+`multi_pulse_uni_BA`, `multi_pulse_bi`, `continuous_uni_AB`, `continuous_uni_BA`, `continuous_bi`):
 
 ```
 python src/data/simulate_msprime.py --outdir test_out --id test --length 0.1 --model constant_2pop --replicates 100
