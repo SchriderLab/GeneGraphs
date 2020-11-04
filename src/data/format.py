@@ -82,7 +82,6 @@ def main():
 
         node_dict = make_node_dict(ts.nodes())
 
-
         X = []
         edge_index = []
 
@@ -95,8 +94,6 @@ def main():
 
             data = from_networkx(G)
             ix = data.edge_index.detach().cpu().numpy()
-
-            print(x.shape, ix.shape)
 
             X.append(x)
             edge_index.append(ix)
