@@ -1,6 +1,6 @@
 import argparse
 import torch
-import torch.nn.funcational as F
+import torch.nn.functional as F
 import h5py
 from data_on_the_fly_classes import DataGeneratorAE
 from gcn import GCN
