@@ -10,6 +10,8 @@ from collections import deque
 
 from sklearn.metrics import accuracy_score
 
+import logging, os
+
 import numpy as np
 
 def parse_args():
@@ -17,6 +19,8 @@ def parse_args():
     # my args
     parser.add_argument("--verbose", action="store_true", help="display messages")
     parser.add_argument("--ifile", default = "None")
+    parser.add_argument("--ifile_val", default = "None")
+
     parser.add_argument("--idir", default = "None")
     parser.add_argument("--odir", default = "None")
 
@@ -28,6 +32,19 @@ def parse_args():
     parser.add_argument("--out_features", default = "2")
 
     args = parser.parse_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.debug("running in verbose mode")
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    if args.odir != "None":
+        if not os.path.exists(args.odir):
+            os.mkdir(args.odir)
+            logging.debug('root: made output directory {0}'.format(args.odir))
+        else:
+            os.system('rm -rf {0}'.format(os.path.join(args.odir, '*')))
 
     return args
 
@@ -43,14 +60,16 @@ def main():
     model.to(device)
 
     generator = DataGeneratorGCN(h5py.File(args.ifile, 'r'))
+    validation_generator = DataGeneratorGCN(h5py.File(args.ifile_val, 'r'))
+
     optimizer = torch.optim.Adam(model.parameters(), lr = float(args.lr))
 
     losses = deque(maxlen=2000)
     accuracies = deque(maxlen=2000)
 
-    model.train()
     for epoch in range(int(args.n_epochs)):
-        for j in range(len(generator)):
+        model.train()
+        for j in range(1000):
             batch, y = generator[j]
             batch = batch.to(device)
             y = y.to(device)
@@ -72,17 +91,39 @@ def main():
             optimizer.step()
 
             if (j + 1) % 100 == 0:
-                print("Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
+                logging.debug("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
                                                                        args.n_epochs, j + 1,
-                                                                       np.mean(losses), np.mean(accuracies)))
+                                                                        np.mean(losses), np.mean(accuracies)))
+
         generator.on_epoch_end()
 
-    # need to change to test_data
-    model.eval()
-    # _, pred = model(data).max(dim=1)
-    # correct = int(pred[data.test_mask].eq(data.y[data.test_mask]).sum().item())
-    # acc = correct / int(data.test_mask.sum())
-    # print('Accuracy: {:.4f}'.format(acc))
+        val_losses = []
+        val_accs = []
+
+        model.eval()
+
+        with torch.no_grad():
+            for j in range(len(validation_generator)):
+                batch, y = validation_generator[j]
+                batch = batch.to(device)
+                y = y.to(device)
+
+                y_pred = model(batch.x, batch.edge_index, batch.batch)
+                loss = F.nll_loss(y_pred, y)
+
+                y_pred = y_pred.detach().cpu().numpy()
+                y = y.detach().cpu().numpy()
+
+                y_pred = np.argmax(y_pred, axis=1)
+
+                val_accs.append(accuracy_score(y, y_pred))
+                val_losses.append(loss.detach().item())
+
+        logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
+
+        validation_generator.on_epoch_end()
+
+
 
 if __name__ == "__main__":
     main()
