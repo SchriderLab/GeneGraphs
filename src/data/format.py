@@ -73,36 +73,43 @@ def parse_args():
 def main():
     args = parse_args()
 
+    models = os.listdir(args.idir)
+
     ofile = h5py.File(args.ofile, 'w')
-    tree_sequences = [os.path.join(args.idir, u) for u in os.listdir(args.idir) if u.split('.')[-1] == 'ts']
-    index = 0
 
-    for tree_sequence in tree_sequences:
-        ts = tskit.load(tree_sequence)
+    for model in models:
+        logging.debug('root: working on model {0}'.format(model))
+        idir = os.path.join(args.idir, model)
 
-        node_dict = make_node_dict(ts.nodes())
+        tree_sequences = [os.path.join(idir, u) for u in os.listdir(idir) if u.split('.')[-1] == 'ts']
+        index = 0
 
-        X = []
-        edge_index = []
+        for tree_sequence in tree_sequences:
+            ts = tskit.load(tree_sequence)
 
-        ts_list = ts.aslist()
+            node_dict = make_node_dict(ts.nodes())
 
-        for tree in ts_list:
-            G = nx.DiGraph(tree.as_dict_of_dicts())
+            X = []
+            edge_index = []
 
-            x = np.array([node_dict[u] for u in G.nodes()])
+            ts_list = ts.aslist()
 
-            data = from_networkx(G)
-            ix = data.edge_index.detach().cpu().numpy()
+            for tree in ts_list:
+                G = nx.DiGraph(tree.as_dict_of_dicts())
 
-            X.append(x)
-            edge_index.append(ix)
+                x = np.array([node_dict[u] for u in G.nodes()])
 
-        ofile.create_dataset('{0}/x'.format(index), data = np.array(X, dtype = np.float32), compression = 'lzf')
-        ofile.create_dataset('{0}/edge_index'.format(index), data = np.array(edge_index, dtype = np.int64), compression = 'lzf')
-        ofile.flush()
+                data = from_networkx(G)
+                ix = data.edge_index.detach().cpu().numpy()
 
-        index += 1
+                X.append(x)
+                edge_index.append(ix)
+
+            ofile.create_dataset('{1}/{0}/x'.format(index, model), data = np.array(X, dtype = np.float32), compression = 'lzf')
+            ofile.create_dataset('{1}/{0}/edge_index'.format(index, model), data = np.array(edge_index, dtype = np.int64), compression = 'lzf')
+            ofile.flush()
+
+            index += 1
 
     ofile.close()
 

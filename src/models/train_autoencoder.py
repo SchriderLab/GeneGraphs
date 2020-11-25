@@ -86,6 +86,8 @@ def main():
             optimizer.zero_grad()
 
             z = model.encode(batch.x, batch.edge_index)
+            print(batch.batch)
+
             loss = model.recon_loss(z, batch.edge_index)
             if args.variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
