@@ -35,7 +35,7 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
 
 
 # make a dict mapping node id to feature vector
-def make_node_dict(nodes, mutation_list, n_populations=3):  # mutation_list
+def make_node_dict(nodes, mutation_list, mutations, n_populations=3):  # mutation_list
     nodes = list(nodes)
 
     times = []
@@ -51,9 +51,10 @@ def make_node_dict(nodes, mutation_list, n_populations=3):  # mutation_list
         x = np.zeros(n_populations + 1)
         x[0] = node.time / max_time
         x[1:] = one_hot(node.population, n_populations)
-
-        mutation_label = one_hot_mutation(node.id, mutation_list)  # tree_dict
-        x = np.append(x, mutation_label)
+        
+        if mutations:
+            mutation_label = one_hot_mutation(node.id, mutation_list)  # tree_dict
+            x = np.append(x, mutation_label)
 
         ret[node.id] = x
 
@@ -69,6 +70,7 @@ def parse_args():
     parser.add_argument("--idir", default="None")
 
     parser.add_argument("--odir", default="None")
+    parser.add_argument("--mutations", default=False, help="include mutation features")
 
     args = parser.parse_args()
 
@@ -92,6 +94,7 @@ def main():
     args = parse_args()
     idir = args.idir
     ofile = args.ofile
+    mutations = args.mutations
 
     models = os.listdir(idir)
 
@@ -105,7 +108,7 @@ def main():
         for tree_sequence in tree_sequences:
             ts = tskit.load(tree_sequence)
 
-            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node)  # ts.trees())  ts.dump_tables().mutations,
+            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node, mutations)  # ts.trees())  ts.dump_tables().mutations,
 
             X = []
             edge_index = []
