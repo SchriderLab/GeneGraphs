@@ -15,14 +15,27 @@ import networkx as nx
 
 from torch_geometric.utils.convert import from_networkx
 
-def one_hot(i, n_populations = 3):
+
+def one_hot(i, n_populations=3):
     ret = np.zeros(n_populations)
 
     ret[i] = 1.
     return ret
 
+
+# Labels as class 1 if the node has a mutation, class 2 if
+# node does not have the mutation
+def one_hot_mutation(node_id, mutation_list, classes=2):
+    label = np.zeros(classes)
+    if node_id in mutation_list:
+        label[0] = 1.
+    else:
+        label[1] = 1.
+    return label
+
+
 # make a dict mapping node id to feature vector
-def make_node_dict(nodes, n_populations = 3):
+def make_node_dict(nodes, mutation_list, n_populations=3):  # mutation_list
     nodes = list(nodes)
 
     times = []
@@ -39,19 +52,23 @@ def make_node_dict(nodes, n_populations = 3):
         x[0] = node.time / max_time
         x[1:] = one_hot(node.population, n_populations)
 
+        mutation_label = one_hot_mutation(node.id, mutation_list)  # tree_dict
+        x = np.append(x, mutation_label)
+
         ret[node.id] = x
 
     return ret
+
 
 def parse_args():
     # Argument Parser
     parser = argparse.ArgumentParser()
     # my args
     parser.add_argument("--verbose", action="store_true", help="display messages")
-    parser.add_argument("--ofile", default = "None")
-    parser.add_argument("--idir", default = "None")
+    parser.add_argument("--ofile", default="None")
+    parser.add_argument("--idir", default="None")
 
-    parser.add_argument("--odir", default = "None")
+    parser.add_argument("--odir", default="None")
 
     args = parser.parse_args()
 
@@ -70,41 +87,50 @@ def parse_args():
 
     return args
 
+
 def main():
     args = parse_args()
+    idir = args.idir
+    ofile = args.ofile
 
-    ofile = h5py.File(args.ofile, 'w')
-    tree_sequences = [os.path.join(args.idir, u) for u in os.listdir(args.idir) if u.split('.')[-1] == 'ts']
-    index = 0
+    models = os.listdir(idir)
 
-    for tree_sequence in tree_sequences:
-        ts = tskit.load(tree_sequence)
+    ofile = h5py.File(ofile, 'w')
+    for model in models:
+        logging.debug('root: working on model {0}'.format(model))
 
-        node_dict = make_node_dict(ts.nodes())
+        tree_sequences = [os.path.join(idir, u) for u in os.listdir(idir) if u.split('.')[-1] == 'ts']
+        index = 0
 
-        X = []
-        edge_index = []
+        for tree_sequence in tree_sequences:
+            ts = tskit.load(tree_sequence)
 
-        ts_list = ts.aslist()
+            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node)  # ts.trees())  ts.dump_tables().mutations,
 
-        for tree in ts_list:
-            G = nx.DiGraph(tree.as_dict_of_dicts())
+            X = []
+            edge_index = []
 
-            x = np.array([node_dict[u] for u in G.nodes()])
+            ts_list = ts.aslist()
 
-            data = from_networkx(G)
-            ix = data.edge_index.detach().cpu().numpy()
+            for tree in ts_list:
+                G = nx.DiGraph(tree.as_dict_of_dicts())
 
-            X.append(x)
-            edge_index.append(ix)
+                x = np.array([node_dict[u] for u in G.nodes()])
 
-        ofile.create_dataset('{0}/x'.format(index), data = np.array(X, dtype = np.float32), compression = 'lzf')
-        ofile.create_dataset('{0}/edge_index'.format(index), data = np.array(edge_index, dtype = np.int64), compression = 'lzf')
-        ofile.flush()
+                data = from_networkx(G)
+                ix = data.edge_index.detach().cpu().numpy()
 
-        index += 1
+                X.append(x)
+                edge_index.append(ix)
+
+            ofile.create_dataset('{1}/{0}/x'.format(index, model), data = np.array(X, dtype = np.float32), compression = 'lzf')
+            ofile.create_dataset('{1}/{0}/edge_index'.format(index, model), data = np.array(edge_index, dtype = np.int64), compression = 'lzf')
+            ofile.flush()
+
+            index += 1
 
     ofile.close()
+
 
 if __name__ == '__main__':
     main()
