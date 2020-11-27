@@ -94,7 +94,6 @@ def main():
     args = parse_args()
     idir = args.idir
     ofile = args.ofile
-    mutations = args.mutations
 
     models = os.listdir(idir)
 
@@ -108,7 +107,7 @@ def main():
         for tree_sequence in tree_sequences:
             ts = tskit.load(tree_sequence)
 
-            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node, mutations)  # ts.trees())  ts.dump_tables().mutations,
+            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node, args.mutations)  # ts.trees())  ts.dump_tables().mutations,
 
             X = []
             edge_index = []
