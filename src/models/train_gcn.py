@@ -69,7 +69,8 @@ def main():
 
     for epoch in range(int(args.n_epochs)):
         model.train()
-        for j in range(1000):
+        # change back to 1000
+        for j in range(len(generator)):
             batch, y = generator[j]
             batch = batch.to(device)
             y = y.to(device)
@@ -89,8 +90,8 @@ def main():
 
             loss.backward()
             optimizer.step()
-
-            if (j + 1) % 100 == 0:
+            # change back to 100
+            if (j + 1) % 10 == 0:
                 logging.debug("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
                                                                        args.n_epochs, j + 1,
                                                                         np.mean(losses), np.mean(accuracies)))

@@ -25,6 +25,7 @@ def one_hot(i, n_populations=3):
 
 # Labels as class 1 if the node has a mutation, class 2 if
 # node does not have the mutation
+# still need to add potential third class for having a mutation in its tree
 def one_hot_mutation(node_id, mutation_list, classes=2):
     label = np.zeros(classes)
     if node_id in mutation_list:
@@ -35,7 +36,7 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
 
 
 # make a dict mapping node id to feature vector
-def make_node_dict(nodes, mutation_list, n_populations=3):  # mutation_list
+def make_node_dict(nodes, mutation_list, mutations=False, n_populations=3):  # mutation_list
     nodes = list(nodes)
 
     times = []
@@ -51,9 +52,9 @@ def make_node_dict(nodes, mutation_list, n_populations=3):  # mutation_list
         x = np.zeros(n_populations + 1)
         x[0] = node.time / max_time
         x[1:] = one_hot(node.population, n_populations)
-
-        mutation_label = one_hot_mutation(node.id, mutation_list)  # tree_dict
-        x = np.append(x, mutation_label)
+        if mutations:
+            mutation_label = one_hot_mutation(node.id, mutation_list)  # tree_dict
+            x = np.append(x, mutation_label)
 
         ret[node.id] = x
 
@@ -69,6 +70,7 @@ def parse_args():
     parser.add_argument("--idir", default="None")
 
     parser.add_argument("--odir", default="None")
+    parser.add_argument("--mutations", default=False, help="include mutation features")
 
     args = parser.parse_args()
 
@@ -90,14 +92,13 @@ def parse_args():
 
 def main():
     args = parse_args()
-    idir = args.idir
-    ofile = args.ofile
 
-    models = os.listdir(idir)
+    ofile = h5py.File(args.ofile, 'w')
+    models = os.listdir(args.idir)
 
-    ofile = h5py.File(ofile, 'w')
     for model in models:
         logging.debug('root: working on model {0}'.format(model))
+        idir = os.path.join(args.idir, model)
 
         tree_sequences = [os.path.join(idir, u) for u in os.listdir(idir) if u.split('.')[-1] == 'ts']
         index = 0
@@ -105,7 +106,7 @@ def main():
         for tree_sequence in tree_sequences:
             ts = tskit.load(tree_sequence)
 
-            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node)  # ts.trees())  ts.dump_tables().mutations,
+            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node)
 
             X = []
             edge_index = []
@@ -123,8 +124,9 @@ def main():
                 X.append(x)
                 edge_index.append(ix)
 
-            ofile.create_dataset('{1}/{0}/x'.format(index, model), data = np.array(X, dtype = np.float32), compression = 'lzf')
-            ofile.create_dataset('{1}/{0}/edge_index'.format(index, model), data = np.array(edge_index, dtype = np.int64), compression = 'lzf')
+            ofile.create_dataset('{1}/{0}/x'.format(index, model), data=np.array(X, dtype=np.float32), compression='lzf')
+            ofile.create_dataset('{1}/{0}/edge_index'.format(index, model), data=np.array(edge_index, dtype=np.int64),
+                                     compression='lzf')
             ofile.flush()
 
             index += 1

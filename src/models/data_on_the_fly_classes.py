@@ -57,7 +57,6 @@ class DataGeneratorGCN(object):
 
         for model in self.models:
             model_index = self.models.index(model)
-
             key = self.keys[model][ix]
 
             del self.keys[model][ix]

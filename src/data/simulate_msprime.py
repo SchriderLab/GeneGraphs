@@ -1,5 +1,6 @@
 import sys, os, argparse
 import numpy as np
+import tsinfer
 
 from demographic_params import define_params, define_AJ_params
 from demographic_models import sim_constant, \
@@ -129,6 +130,8 @@ def parse_arguments():
                         help="print ms-style output", action='store_true', required=False)
     parser.add_argument("--samples",
                         help="sample size", type=int, dest="sample_size", required=False)
+    parser.add_argument("--inferred",
+                        help="use inferred trees", type=bool, dest="inferred", required=False)
 
 
     args = parser.parse_args()
@@ -149,6 +152,10 @@ def parse_arguments():
         num_replicates = args.num_replicates
     else:
         num_replicates = 1
+    if args.inferred:
+        inferred = args.inferred
+    else:
+        inferred = False
 
     fixed_params = {'seed': args.seed,
                     'sample_size': args.sample_size,
@@ -191,7 +198,7 @@ def parse_arguments():
                     'mW': None
                     }
 
-    return out_dir, param_dir, sim_id, L, num_replicates, model_func, locus_replicates, fixed_params, args.msout, args.model
+    return out_dir, param_dir, sim_id, L, num_replicates, model_func, locus_replicates, fixed_params, args.msout, args.model, inferred
 
 
 def write_param_file(params, param_file_path, j):
@@ -213,7 +220,7 @@ def get_sites(tree_sequence):
     return positions
 
 
-def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout):
+def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout, inferred, out_dir):
     print('simulating 1 locus replicate')
     print('sim_locus')
     tree_replicates, params, y, label = model_func(L, in_params, locus_replicates)
@@ -244,6 +251,16 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
                 for indiv in tree_constant_np_matrix.tolist():
                     genotypes = ''.join(str(e) for e in indiv)
                     f.write('{}\n'.format(genotypes))
+
+        if inferred:
+            with tsinfer.SampleData(
+                    path=os.path.join(out_dir, "inferred{0}.samples".format(j)),
+                    sequence_length=tree_sequence.sequence_length,
+                    num_flush_threads=2) as sample_data:
+                # do we only want to iterate through the variants?
+                # need to determine exactly how to encode our trees using this SampleData class
+                for var in tree_sequence.variants():
+                    sample_data.add_site(var.site.position, var.genotypes, var.alleles)
 
     filename = '{}_{}.npz'.format(out_file_path, j)
 
@@ -306,7 +323,7 @@ def sim_locus_reps(model_func, L, in_params, param_file_path, j, out_file_path, 
 def main():
     sys.stderr.write('starting simulations\n')
 
-    out_dir, param_dir, sim_id, L, num_replicates, model_func, locus_replicates, fixed_params, msout, model = parse_arguments()
+    out_dir, param_dir, sim_id, L, num_replicates, model_func, locus_replicates, fixed_params, msout, model, inferred = parse_arguments()
 
     creatDir(out_dir)
     creatDir(param_dir)
@@ -329,7 +346,7 @@ def main():
         if locus_replicates > 1:
             max_snps = sim_locus_reps(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout)
         else:
-            max_snps = sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout)
+            max_snps = sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout, inferred, out_dir) #
 
     snp_filename = '{}_maxsnps.txt'.format(out_file_path)
     with open(snp_filename, 'w') as f:
