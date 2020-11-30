@@ -122,7 +122,6 @@ def main():
 
         logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
 
-        validation_generator.on_epoch_end()
 
 
 

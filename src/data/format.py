@@ -23,9 +23,6 @@ def one_hot(i, n_populations=3):
     return ret
 
 
-# Labels as class 1 if the node has a mutation, class 2 if
-# node does not have the mutation
-# still need to add potential third class for having a mutation in its tree
 def one_hot_mutation(node_id, mutation_list, classes=2):
     label = np.zeros(classes)
     if node_id in mutation_list:
@@ -35,8 +32,17 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
     return label
 
 
-# make a dict mapping node id to feature vector
-def make_node_dict(nodes, mutation_list, mutations=False, n_populations=3):  # mutation_list
+def make_node_dict(nodes, mutation_list, mutations=False, n_populations=3):
+    """Creates a dictionary mapping node IDs to their feature vectors
+        Args:
+            nodes (iterator): Iterator of nodes in tree sequence
+            mutation_list (np array): Array of the node IDs containing mutations
+            mutations (boolean): Whether or not to include OHE representation of whether or not the node
+                                has a mutation
+            n_populations (int): The number of populations
+        Returns:
+            dictionary(node IDs => feature vectors)
+        """
     nodes = list(nodes)
 
     times = []
@@ -106,7 +112,7 @@ def main():
         for tree_sequence in tree_sequences:
             ts = tskit.load(tree_sequence)
 
-            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node)
+            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node, args.mutations)
 
             X = []
             edge_index = []
@@ -115,7 +121,6 @@ def main():
 
             for tree in ts_list:
                 G = nx.DiGraph(tree.as_dict_of_dicts())
-
                 x = np.array([node_dict[u] for u in G.nodes()])
 
                 data = from_networkx(G)
@@ -124,9 +129,10 @@ def main():
                 X.append(x)
                 edge_index.append(ix)
 
-            ofile.create_dataset('{1}/{0}/x'.format(index, model), data=np.array(X, dtype=np.float32), compression='lzf')
+            ofile.create_dataset('{1}/{0}/x'.format(index, model), data=np.array(X, dtype=np.float32),
+                                 compression='lzf')
             ofile.create_dataset('{1}/{0}/edge_index'.format(index, model), data=np.array(edge_index, dtype=np.int64),
-                                     compression='lzf')
+                                 compression='lzf')
             ofile.flush()
 
             index += 1
