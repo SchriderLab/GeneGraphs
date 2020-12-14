@@ -90,6 +90,7 @@ def main():
 
             loss.backward()
             optimizer.step()
+
             # change back to 100
             if (j + 1) % 10 == 0:
                 logging.debug("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
