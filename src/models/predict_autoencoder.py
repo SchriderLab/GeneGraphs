@@ -46,12 +46,15 @@ def parse_args():
 def main():
     args = parse_args()
 
+<<<<<<< HEAD
     demographic_models = []
     if " " in args.demographic_model:
         demographic_models = args.demographic_model.split(" ")
     else:
         demographic_models = list(args.demographic_model)
 
+=======
+>>>>>>> 5812b8cdbcaf1840b026411a5167255692719b5a
     # be on the GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -64,7 +67,11 @@ def main():
 
     # get a generator to scroll through the data, don't downsample it
     # for now we have to just get a sample...even a single batch is too big for CPU RAM
+<<<<<<< HEAD
     generator = DataGenerator(h5py.File(args.ifile, 'r'), models = demographic_models, downsample = True)
+=======
+    generator = DataGenerator(h5py.File(args.ifile, 'r'), models = [args.demographic_model], downsample = True)
+>>>>>>> 5812b8cdbcaf1840b026411a5167255692719b5a
 
     for ix in range(len(generator)):
         batch, y = generator[ix]
@@ -82,12 +89,19 @@ def main():
             A = np.zeros((n_nodes, n_nodes))
             for i in range(edge_index.shape[1]):
                 A[edge_index[0,i], edge_index[1,i]] = 1
+<<<<<<< HEAD
+=======
+
+>>>>>>> 5812b8cdbcaf1840b026411a5167255692719b5a
             for i in range(int(np.max(index))):
                 # nodes in graph i
                 index_ = list(np.where(index == i)[0])
 
+<<<<<<< HEAD
                 # graph label
                 label = y.detach().cpu().numpy().astype(np.int32)[i]
+=======
+>>>>>>> 5812b8cdbcaf1840b026411a5167255692719b5a
                 # features in graph i
                 z_ = z[index_,:]
                 # predicted connections
@@ -100,9 +114,14 @@ def main():
                                    + np.multiply((1 - A_.flatten()), np.log(1 - A_pred_.flatten())))
                 accuracy = accuracy_score(A_.flatten(), np.round(A_pred_).flatten())
 
+<<<<<<< HEAD
                 assert len(y.detach().numpy()) == round(len(A)/len(A_))
                 np.savez(os.path.join(args.odir, '{:06d}_{:06d}.npz'.format(ix, i)), Z = z_, A = A_,
                          A_pred = A_pred_, acc = accuracy, loss = bc_loss, label = label)
+=======
+                np.savez(os.path.join(args.odir, '{:06d}_{:06d}.npz'.format(ix, i)), Z = z_, A = A_,
+                         A_pred = A_pred_, acc = accuracy, loss = bc_loss)
+>>>>>>> 5812b8cdbcaf1840b026411a5167255692719b5a
 
 
 
@@ -129,4 +148,8 @@ def main():
 
 
 if __name__ == '__main__':
+<<<<<<< HEAD
     main()
+=======
+    main()
+>>>>>>> 5812b8cdbcaf1840b026411a5167255692719b5a
