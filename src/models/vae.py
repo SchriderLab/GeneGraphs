@@ -4,7 +4,26 @@ import argparse
 import torch
 import torch_geometric.transforms as T
 from torch_geometric.nn import GCNConv, GAE, VGAE
-from torch_geometric.utils import train_test_split_edges
+from torch_geometric.utils import train_test_split_edges, batched_negative_sampling
+from torch_geometric.nn.models.autoencoder import InnerProductDecoder
+
+EPS = 1e-5
+
+class FLLReconLoss(torch.nn.Module):
+    def __init__(self):
+        super(FLLReconLoss, self).__init__()
+        self.decoder = InnerProductDecoder()
+
+    def forward(self, z, edge_index, batch):
+        pos_loss = -torch.log(
+            self.decoder(z, edge_index, sigmoid=True) + EPS).mean()
+
+        neg_edge_index = batched_negative_sampling(edge_index, batch, z.size(0))
+        neg_loss = -torch.log(1 -
+                              self.decoder(z, neg_edge_index, sigmoid=True) +
+                              EPS).mean()
+
+        return pos_loss + neg_loss
 
 class GCNEncoder(torch.nn.Module):
     def __init__(self, in_channels, out_channels):

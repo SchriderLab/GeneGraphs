@@ -14,22 +14,23 @@ import logging, os
 
 import numpy as np
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     # my args
     parser.add_argument("--verbose", action="store_true", help="display messages")
-    parser.add_argument("--ifile", default = "None")
-    parser.add_argument("--ifile_val", default = "None")
+    parser.add_argument("--ifile", default="None")
+    parser.add_argument("--ifile_val", default="None")
 
-    parser.add_argument("--idir", default = "None")
-    parser.add_argument("--odir", default = "None")
+    parser.add_argument("--idir", default="None")
+    parser.add_argument("--odir", default="None")
 
-    parser.add_argument("--n_epochs", default = "5")
-    parser.add_argument("--lr", default = "0.01")
-    parser.add_argument("--weight_decay", default = "5e-4")
+    parser.add_argument("--n_epochs", default="5")
+    parser.add_argument("--lr", default="0.01")
+    parser.add_argument("--weight_decay", default="5e-4")
 
-    parser.add_argument("--in_features", default = "4")
-    parser.add_argument("--out_features", default = "2")
+    parser.add_argument("--in_features", default="4")
+    parser.add_argument("--out_features", default="2")
 
     args = parser.parse_args()
 
@@ -48,8 +49,8 @@ def parse_args():
 
     return args
 
-def main():
 
+def main():
     args = parse_args()
 
     num_features = int(args.in_features)
@@ -62,7 +63,7 @@ def main():
     generator = DataGeneratorGCN(h5py.File(args.ifile, 'r'))
     validation_generator = DataGeneratorGCN(h5py.File(args.ifile_val, 'r'))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr = float(args.lr))
+    optimizer = torch.optim.Adam(model.parameters(), lr=float(args.lr))
 
     losses = deque(maxlen=2000)
     accuracies = deque(maxlen=2000)
@@ -90,11 +91,13 @@ def main():
 
             loss.backward()
             optimizer.step()
+
             # change back to 100
             if (j + 1) % 10 == 0:
-                logging.debug("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
-                                                                       args.n_epochs, j + 1,
-                                                                        np.mean(losses), np.mean(accuracies)))
+                logging.debug("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch + 1,
+                                                                                               args.n_epochs, j + 1,
+                                                                                               np.mean(losses),
+                                                                                               np.mean(accuracies)))
 
         generator.on_epoch_end()
 
@@ -120,9 +123,10 @@ def main():
                 val_accs.append(accuracy_score(y, y_pred))
                 val_losses.append(loss.detach().item())
 
-        logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
+        logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses),
+                                                                                 np.mean(val_accs)))
 
-
+        validation_generator.on_epoch_end()
 
 
 if __name__ == "__main__":
