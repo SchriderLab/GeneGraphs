@@ -29,13 +29,8 @@ def parse_args():
     parser.add_argument("--lr", default="0.01")
     parser.add_argument("--weight_decay", default="5e-4")
 
-<<<<<<< HEAD
     parser.add_argument("--in_features", default = "6")
     parser.add_argument("--out_features", default = "2")
-=======
-    parser.add_argument("--in_features", default="4")
-    parser.add_argument("--out_features", default="2")
->>>>>>> 2755ef35653bc61c48c0cd0e98ffe41034c98988
 
     args = parser.parse_args()
 
