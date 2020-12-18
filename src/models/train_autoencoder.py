@@ -35,7 +35,7 @@ def parse_args():
 
     parser.add_argument("--n_epochs", default = "5")
 
-    parser.add_argument("--in_features", default = "4")
+    parser.add_argument("--in_features", default = "6")
     parser.add_argument("--out_features", default = "16")
 
     parser.add_argument("--linear", action = "store_true")
@@ -113,7 +113,7 @@ def main():
             losses.append(loss.item())
 
             if (j + 1) % 100 == 0:
-                logging.debug("root: Epoch: {}/{}, Step: {}/{}, Loss: {:.4f}".format(i+1,
+                logging.info("root: Epoch: {}/{}, Step: {}/{}, Loss: {:.4f}".format(i+1,
                                                                        args.n_epochs, j + 1, n_steps,
                                                                         np.mean(losses)))
         generator.on_epoch_end()
@@ -137,7 +137,7 @@ def main():
 
         validation_generator.on_epoch_end()
 
-        logging.debug('root: Epoch: {}/{}, validation loss: {:.4f}'.format(i+1,
+        logging.info('root: Epoch: {}/{}, validation loss: {:.4f}'.format(i+1,
                                                                        args.n_epochs, np.mean(validation_losses)))
         if np.mean(validation_losses) < val_loss:
             torch.save(model, os.path.join(args.odir, '{0}.model'.format(args.tag)))

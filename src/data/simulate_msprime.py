@@ -131,7 +131,7 @@ def parse_arguments():
     parser.add_argument("--samples",
                         help="sample size", type=int, dest="sample_size", required=False)
     parser.add_argument("--inferred",
-                        help="use inferred trees", type=bool, dest="inferred", required=False)
+                        help="use inferred trees", action = 'store_true', dest="inferred", required=False)
 
 
     args = parser.parse_args()
@@ -252,21 +252,28 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
                     genotypes = ''.join(str(e) for e in indiv)
                     f.write('{}\n'.format(genotypes))
 
-        if inferred:
-            with tsinfer.SampleData(
-                    path=os.path.join(out_dir, "inferred{0}.samples".format(j)),
-                    sequence_length=tree_sequence.sequence_length,
-                    num_flush_threads=2) as sample_data:
-                # do we only want to iterate through the variants?
-                # need to determine exactly how to encode our trees using this SampleData class
-                for var in tree_sequence.variants():
-                    sample_data.add_site(var.site.position, var.genotypes, var.alleles)
+
+        with tsinfer.SampleData(
+                path=os.path.join(out_dir, "inferred{0}.samples".format(j)),
+                sequence_length=tree_sequence.sequence_length,
+                num_flush_threads=2) as sample_data:
+            # do we only want to iterate through the variants?
+            # need to determine exactly how to encode our trees using this SampleData class
+            for var in tree_sequence.variants():
+                sample_data.add_site(var.site.position, var.genotypes, var.alleles)
+
+            sample_data.finalise()
+
+            inferred_ts = tsinfer.infer(sample_data)
 
     filename = '{}_{}.npz'.format(out_file_path, j)
 
     print('save tree_sequence to file {}\n'.format(filename))
     np.savez_compressed(filename, X=tree_constant_np_matrix, y=y, z=label, p=positions)
-    tree_sequence.dump('{}_{}.ts'.format(out_file_path, j))
+    tree_sequence.dump('{}_{:06d}.ts'.format(out_file_path, j))
+
+
+    inferred_ts.dump('{}_{:06d}_inferred.ts'.format(out_file_path, j))
 
     return max_snps
 

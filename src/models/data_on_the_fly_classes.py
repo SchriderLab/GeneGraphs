@@ -7,7 +7,7 @@ import torch
 import random
 
 class DataGenerator(object):
-    def __init__(self, ifile, models = None, downsample = True, downsample_rate = 0.05):
+    def __init__(self, ifile, models = None, downsample = False, downsample_rate = 0.05):
         if models is None:
             self.models = list(ifile.keys())
         else:
@@ -32,23 +32,17 @@ class DataGenerator(object):
             key = self.keys[model][0]
 
             del self.keys[model][0]
-            l = self.ifile[model][key]['x'].shape[0]
+            skeys = self.ifile[model][key].keys()
 
-            if self.downsample:
-                ix = list(np.random.choice(range(l), int(np.round(l * self.downsample_rate)), replace = False))
-            else:
-                ix = list(range(l))
+            for skey in skeys:
+                X.append(np.array(self.ifile[model][key][skey]['x']))
+                indices.append(np.array(self.ifile[model][key][skey]['edge_index']))
+                y.append(model_index)
 
-            X.append(np.array(self.ifile[model][key]['x'])[ix])
-            indices.append(np.array(self.ifile[model][key]['edge_index'])[ix])
-            y.append(np.ones(len(ix))*model_index)
-
-        X = np.vstack(X)
-        indices = np.vstack(indices)
         y = torch.LongTensor(np.hstack(y).astype(np.int32))
 
         batch = Batch.from_data_list(
-            [Data(x=torch.FloatTensor(X[k]), edge_index=torch.LongTensor(indices[k])) for k in range(indices.shape[0])])
+            [Data(x=torch.FloatTensor(X[k]), edge_index=torch.LongTensor(indices[k])) for k in range(len(indices))])
 
         return batch, y
 

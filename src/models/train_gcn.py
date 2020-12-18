@@ -2,7 +2,7 @@ import argparse
 import torch
 import torch.nn.functional as F
 import h5py
-from data_on_the_fly_classes import DataGeneratorGCN
+from data_on_the_fly_classes import DataGenerator
 from gcn import GCN
 
 from torch.nn import CrossEntropyLoss, NLLLoss, DataParallel
@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument("--lr", default = "0.01")
     parser.add_argument("--weight_decay", default = "5e-4")
 
-    parser.add_argument("--in_features", default = "4")
+    parser.add_argument("--in_features", default = "6")
     parser.add_argument("--out_features", default = "2")
 
     args = parser.parse_args()
@@ -59,8 +59,8 @@ def main():
     model = GCN(num_features, out_channels)
     model.to(device)
 
-    generator = DataGeneratorGCN(h5py.File(args.ifile, 'r'))
-    validation_generator = DataGeneratorGCN(h5py.File(args.ifile_val, 'r'))
+    generator = DataGenerator(h5py.File(args.ifile, 'r'))
+    validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
 
     optimizer = torch.optim.Adam(model.parameters(), lr = float(args.lr))
 
@@ -93,7 +93,7 @@ def main():
 
             # change back to 100
             if (j + 1) % 10 == 0:
-                logging.debug("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
+                logging.info("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
                                                                        args.n_epochs, j + 1,
                                                                         np.mean(losses), np.mean(accuracies)))
 
@@ -121,7 +121,7 @@ def main():
                 val_accs.append(accuracy_score(y, y_pred))
                 val_losses.append(loss.detach().item())
 
-        logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
+        logging.info('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
         
         validation_generator.on_epoch_end()
 

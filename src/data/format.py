@@ -32,7 +32,7 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
     return label
 
 
-def make_node_dict(nodes, mutation_list, mutations=False, n_populations=3):
+def make_node_dict(nodes, mutation_list, mutations=True, n_populations=3):
     """Creates a dictionary mapping node IDs to their feature vectors
         Args:
             nodes (iterator): Iterator of nodes in tree sequence
@@ -76,7 +76,6 @@ def parse_args():
     parser.add_argument("--idir", default="None")
 
     parser.add_argument("--odir", default="None")
-    parser.add_argument("--mutations", default=False, help="include mutation features")
 
     args = parser.parse_args()
 
@@ -106,18 +105,25 @@ def main():
         logging.debug('root: working on model {0}'.format(model))
         idir = os.path.join(args.idir, model)
 
-        tree_sequences = [os.path.join(idir, u) for u in os.listdir(idir) if u.split('.')[-1] == 'ts']
+        tree_sequences = sorted([os.path.join(idir, u) for u in os.listdir(idir) if u.split('.')[-1] == 'ts'])
+        real_trees = sorted([u for u in tree_sequences if not 'inferred' in u])
+        inf_trees = sorted([u for u in tree_sequences if 'inferred' in u])
+
+        tree_sequences = zip(real_trees, inf_trees)
         index = 0
 
-        for tree_sequence in tree_sequences:
-            ts = tskit.load(tree_sequence)
+        for real, inf in tree_sequences:
+            ts = tskit.load(real)
+            ts_inf = tskit.load(inf)
 
-            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node, args.mutations)
+            node_dict = make_node_dict(ts.nodes(), ts.dump_tables().mutations.node)
 
             X = []
             edge_index = []
 
-            ts_list = ts.aslist()
+            ts_list = ts_inf.aslist()
+
+            s_index = 0
 
             for tree in ts_list:
                 G = nx.DiGraph(tree.as_dict_of_dicts())
@@ -126,15 +132,14 @@ def main():
                 data = from_networkx(G)
                 ix = data.edge_index.detach().cpu().numpy()
 
-                X.append(x)
-                edge_index.append(ix)
+                ofile.create_dataset('{0}/{1}/{2}/x'.format(model, index, s_index), data = x,
+                                     compression='lzf')
+                ofile.create_dataset('{0}/{1}/{2}/edge_index'.format(model, index, s_index), data = ix,
+                                     compression='lzf')
 
-            ofile.create_dataset('{1}/{0}/x'.format(index, model), data=np.array(X, dtype=np.float32),
-                                 compression='lzf')
-            ofile.create_dataset('{1}/{0}/edge_index'.format(index, model), data=np.array(edge_index, dtype=np.int64),
-                                 compression='lzf')
+                s_index += 1
+
             ofile.flush()
-
             index += 1
 
     ofile.close()
