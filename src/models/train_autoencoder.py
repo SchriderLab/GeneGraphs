@@ -143,7 +143,10 @@ def main():
             torch.save(model, os.path.join(args.odir, '{0}.model'.format(args.tag)))
             val_loss = np.mean(validation_losses)
 
-    np.savetxt(os.path.join(args.odir, '{0}.evals'.format(args.tag)), np.array([np.mean(losses), val_loss]))
+    if args.odir is not None:
+        np.savetxt(os.path.join(args.odir, '{0}.evals'.format(args.tag)), np.array([np.mean(losses), val_loss]))
+    else:
+        print("Training not saved. No output directory provided.")
 
 
 

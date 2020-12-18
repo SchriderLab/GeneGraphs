@@ -4,6 +4,12 @@ import numpy as np
 from torch_geometric.data import Data, Batch, DataLoader
 import torch
 
+import sys
+import numpy as np
+
+from torch_geometric.data import Data, Batch, DataLoader
+import torch
+
 import random
 
 class DataGenerator(object):
@@ -50,8 +56,3 @@ class DataGenerator(object):
         self.keys = {model: list(self.ifile[model].keys()) for model in self.models}
         for key in self.keys.keys():
             random.shuffle(self.keys[key])
-
-
-
-
-
