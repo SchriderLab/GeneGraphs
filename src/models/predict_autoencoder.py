@@ -52,6 +52,7 @@ def main():
     else:
         demographic_models = list(args.demographic_model)
 
+
     # be on the GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -123,14 +124,6 @@ def main():
 
 
 
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
     main()
+
