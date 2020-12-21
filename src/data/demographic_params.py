@@ -54,7 +54,7 @@ def define_params(fixed_params=None):
     if fixed_params and fixed_params['td']:
         td = fixed_params['td']
     else:
-        priors['td'] = (100, 8000)
+        priors['td'] = (4000, 40000) # changed from priors['td'] = (100, 8000)
         td = selectVal(priors['td'][0], priors['td'][1])
 
     if fixed_params and fixed_params['tm']:

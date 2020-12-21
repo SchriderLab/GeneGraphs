@@ -12,7 +12,7 @@ def pca_plotting(data):
         plt.scatter(arr_fitted[:, 0], arr_fitted[:, 1], c='b')
     else:
         plt.scatter(arr_fitted[:, 0], arr_fitted[:, 1], marker='x', c='r')
-    plt.title("PCA Demographic Models")
+
 
 def main():
     for i in range(10, 60):
@@ -22,8 +22,11 @@ def main():
         pca_plotting(data)
     blue = mpatches.Patch(color='blue', label='Pop1')
     red = mpatches.Patch(color='red', label='Pop2')
+    plt.title("PCA Demographic Models")
     plt.legend(handles=[blue, red])
     plt.show()
 
+
 if __name__ == "__main__":
     main()
+

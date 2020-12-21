@@ -95,6 +95,7 @@ def main():
         model.train()
 
         n_steps = len(generator)
+        print("Len: ", len(generator)) ## delete this
         for j in range(n_steps):
             batch, y = generator[j]
             batch = batch.to(device)
