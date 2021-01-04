@@ -103,7 +103,7 @@ def main():
                                    + np.multiply((1 - A_.flatten()), np.log(1 - A_pred_.flatten())))
                 accuracy = accuracy_score(A_.flatten(), np.round(A_pred_).flatten())
 
-                assert len(y.detach().numpy()) == round(len(A)/len(A_))
+                # assert len(y.detach().numpy()) == round(len(A)/len(A_)) # do these not need to be equal?
                 np.savez(os.path.join(args.odir, '{:06d}_{:06d}.npz'.format(ix, i)), Z = z_, A = A_,
                          A_pred = A_pred_, acc = accuracy, loss = bc_loss, label = label)
 

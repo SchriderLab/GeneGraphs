@@ -17,11 +17,11 @@ def pca_plotting(data):
 def main():
     for i in range(10, 60):
         # file = '../../results_y/0000{}_000010.npz'.format(i + 1) # arbitrary slice of data
-        file = '../../results_y/000000_0000{}.npz'.format(i)
+        file = 'trashing_output/000000_0000{}.npz'.format(i)
         data = np.load(file)
         pca_plotting(data)
-    blue = mpatches.Patch(color='blue', label='Pop1')
-    red = mpatches.Patch(color='red', label='Pop2')
+    blue = mpatches.Patch(color='blue', label='Model1')
+    red = mpatches.Patch(color='red', label='Model2')
     plt.title("PCA Demographic Models")
     plt.legend(handles=[blue, red])
     plt.show()

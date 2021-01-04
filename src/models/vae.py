@@ -2,6 +2,7 @@ import os.path as osp
 
 import argparse
 import torch
+import torch.nn.functional as F
 import torch_geometric.transforms as T
 from torch_geometric.nn import GCNConv, GAE, VGAE
 from torch_geometric.utils import train_test_split_edges, batched_negative_sampling
@@ -62,4 +63,18 @@ class VariationalLinearEncoder(torch.nn.Module):
 
     def forward(self, x, edge_index):
         return self.conv_mu(x, edge_index), self.conv_logstd(x, edge_index)
+
+class Discriminator(torch.nn.Module):
+    def __init__(self, out_channels):
+        super(Discriminator, self).__init__()
+        self.layers = torch.nn.Sequential(
+            torch.nn.Linear(out_channels, out_channels*2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(out_channels*2, out_channels*2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(out_channels*2, out_channels)
+        )
+    def forward(self, x):
+        x = self.layers(x)
+        return x
 

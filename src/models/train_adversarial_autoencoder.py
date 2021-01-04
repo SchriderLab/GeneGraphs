@@ -1,27 +1,14 @@
 import os
-import sys
-import itertools
-
-import os
 import logging, argparse
-import itertools
 import numpy as np
 
-import platform
 import torch
-from torch_geometric.nn import GCNConv, GAE, VGAE
+from torch_geometric.nn import GCNConv, ARGA, ARGVA
 
-from vae import GCNEncoder, VariationalGCNEncoder, LinearEncoder, VariationalLinearEncoder, FLLReconLoss
+from vae import Discriminator, GCNEncoder, VariationalGCNEncoder, LinearEncoder, VariationalLinearEncoder, FLLReconLoss
 from data_on_the_fly_classes import DataGenerator
 from collections import deque
-from scipy.sparse import coo_matrix, csc_matrix, lil_matrix
-
-from torch_geometric.utils.convert import to_networkx
-
 import h5py
-
-import networkx as nx
-import matplotlib.pyplot as plt
 
 def parse_args():
     # Argument Parser
@@ -69,14 +56,14 @@ def main():
 
     if not args.variational:
         if not args.linear:
-            model = GAE(GCNEncoder(num_features, out_channels))
+            model = ARGA(GCNEncoder(num_features, out_channels), Discriminator(out_channels))
         else:
-            model = GAE(LinearEncoder(num_features, out_channels))
+            model = ARGA(LinearEncoder(num_features, out_channels), Discriminator(out_channels))
     else:
         if args.linear:
-            model = VGAE(VariationalLinearEncoder(num_features, out_channels))
+            model = ARGVA(VariationalLinearEncoder(num_features, out_channels), Discriminator(out_channels))
         else:
-            model = VGAE(VariationalGCNEncoder(num_features, out_channels))
+            model = ARGVA(VariationalGCNEncoder(num_features, out_channels), Discriminator(out_channels))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
@@ -84,9 +71,11 @@ def main():
     generator = DataGenerator(h5py.File(args.ifile, 'r'))
     validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr = 0.01)
+    encoder_optimizer = torch.optim.Adam(model.encoder.parameters(), lr=0.01)
+    discriminator_optimizer = torch.optim.Adam(model.discriminator.parameters(), lr=0.01)
 
     losses = deque(maxlen=2000)
+
     criterion = FLLReconLoss()
 
     val_loss = np.inf
@@ -95,46 +84,56 @@ def main():
         model.train()
 
         n_steps = len(generator)
-        print("Len: ", len(generator)) ## delete this
+        loss_slice = deque(maxlen=2000)
+        print("Len: ", len(generator))
         for j in range(n_steps):
-            batch, y = generator[j]
+            batch, _ = generator[j]
             batch = batch.to(device)
 
-            optimizer.zero_grad()
-
+            encoder_optimizer.zero_grad()
             z = model.encode(batch.x, batch.edge_index)
-            loss = criterion(z, batch.edge_index, batch.batch)
 
+            # discriminator optimization
+            for _ in range(5):
+                discriminator_optimizer.zero_grad()
+                discriminator_loss = model.discriminator_loss(z)
+                discriminator_loss.backward()
+                discriminator_optimizer.step()
+
+            # encoder optimization
+            loss = criterion(z, batch.edge_index, batch.batch)
             if args.variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
-
             loss.backward()
-            optimizer.step()
+            encoder_optimizer.step()
 
-            losses.append(loss.item())
+            loss_slice.append(loss.item()) # change
 
             if (j + 1) % 100 == 0:
                 logging.info("root: Epoch: {}/{}, Step: {}/{}, Loss: {:.4f}".format(i+1,
                                                                        args.n_epochs, j + 1, n_steps,
-                                                                        np.mean(losses)))
+                                                                        np.mean(loss_slice))) # change
         generator.on_epoch_end()
 
         model.eval()
 
         validation_losses = []
+        validation_disc_losses = []
 
         for j in range(len(validation_generator)):
-            batch, y = validation_generator[j]
+            batch, _ = validation_generator[j]
             batch = batch.to(device)
 
             with torch.no_grad():
                 z = model.encode(batch.x, batch.edge_index)
+                valid_disc_loss = model.discriminator_loss(z)
                 loss = criterion(z, batch.edge_index, batch.batch)
 
                 if args.variational:
                     loss = loss + (1 / batch.num_nodes) * model.kl_loss()
 
                 validation_losses.append(loss.item())
+                validation_disc_losses.append(valid_disc_loss.item())
 
         validation_generator.on_epoch_end()
 

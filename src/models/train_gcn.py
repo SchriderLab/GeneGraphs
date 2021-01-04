@@ -123,15 +123,11 @@ def main():
                 val_accs.append(accuracy_score(y, y_pred))
                 val_losses.append(loss.detach().item())
 
-<<<<<<< HEAD
         logging.info('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
         
         validation_generator.on_epoch_end()
-=======
         logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses),
                                                                                  np.mean(val_accs)))
->>>>>>> 2755ef35653bc61c48c0cd0e98ffe41034c98988
-
         validation_generator.on_epoch_end()
 
 

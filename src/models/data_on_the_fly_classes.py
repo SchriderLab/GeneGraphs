@@ -37,7 +37,7 @@ class DataGenerator(object):
             model_index = self.models.index(model)
             key = self.keys[model][0]
 
-            del self.keys[model][0]
+            del self.keys[model][0] # can't just delete this. Need to use on_epoch_end
             skeys = self.ifile[model][key].keys()
 
             for skey in skeys:
