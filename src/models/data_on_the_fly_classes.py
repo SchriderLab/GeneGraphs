@@ -13,40 +13,49 @@ import torch
 import random
 
 class DataGenerator(object):
-    def __init__(self, ifile, models = None, downsample = False, downsample_rate = 0.05):
+    def __init__(self, ifile, models = None, n_samples_per = 5):
         if models is None:
             self.models = list(ifile.keys())
         else:
             self.models = models
 
-        self.downsample = downsample
-        self.downsample_rate = downsample_rate
+        # hdf5 file we are reading from
         self.ifile = ifile
 
+        # how many tree sequences from each demographic model are included in a batch?
+        self.n_samples_per = n_samples_per
+
+        # shuffle the keys / make sure they are all there (keys are deleted
+        # during training or validation so as not to repeat samples)
         self.on_epoch_end()
 
     def __len__(self):
-        return int(np.min([len(self.keys[u]) for u in self.keys.keys()]))
+        return int(np.floor(np.min([len(self.keys[u]) for u in self.keys.keys()]) / self.n_samples_per))
 
     def __getitem__(self, index):
+        # features, edge_indices, and label
         X = []
         indices = []
         y = []
 
         for model in self.models:
-            model_index = self.models.index(model)
-            key = self.keys[model][0]
+            # grab n_samples_per for each model
+            for ix in range(self.n_samples_per):
+                model_index = self.models.index(model)
+                key = self.keys[model][0]
 
-            del self.keys[model][0] # can't just delete this. Need to use on_epoch_end
-            skeys = self.ifile[model][key].keys()
+                del self.keys[model][0]
+                skeys = self.ifile[model][key].keys()
 
-            for skey in skeys:
-                X.append(np.array(self.ifile[model][key][skey]['x']))
-                indices.append(np.array(self.ifile[model][key][skey]['edge_index']))
-                y.append(model_index)
+                # for each tree
+                for skey in skeys:
+                    X.append(np.array(self.ifile[model][key][skey]['x']))
+                    indices.append(np.array(self.ifile[model][key][skey]['edge_index']))
+                    y.append(model_index)
 
         y = torch.LongTensor(np.hstack(y).astype(np.int32))
 
+        # use PyTorch Geometrics batch object to make one big graph
         batch = Batch.from_data_list(
             [Data(x=torch.FloatTensor(X[k]), edge_index=torch.LongTensor(indices[k])) for k in range(len(indices))])
 
