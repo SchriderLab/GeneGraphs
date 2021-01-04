@@ -53,20 +53,24 @@ def parse_args():
 def main():
     args = parse_args()
 
+    # input features
     num_features = int(args.in_features)
+    # number of classes (demographic models) to predict
     out_channels = int(args.out_features)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = GCN(num_features, out_channels)
     model.to(device)
 
+    # data generator objects for training and validation respectively
     generator = DataGenerator(h5py.File(args.ifile, 'r'))
     validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
 
+    # default optimizer for now
     optimizer = torch.optim.Adam(model.parameters(), lr=float(args.lr))
 
-    losses = deque(maxlen=2000)
-    accuracies = deque(maxlen=2000)
+    losses = deque(maxlen=500)
+    accuracies = deque(maxlen=500)
 
     for epoch in range(int(args.n_epochs)):
         model.train()
@@ -75,6 +79,8 @@ def main():
             batch, y = generator[j]
             batch = batch.to(device)
             y = y.to(device)
+
+            print(y.shape)
 
             optimizer.zero_grad()
             y_pred = model(batch.x, batch.edge_index, batch.batch)
@@ -97,7 +103,6 @@ def main():
                 logging.info("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
                                                                        args.n_epochs, j + 1,
                                                                         np.mean(losses), np.mean(accuracies)))
-
 
         generator.on_epoch_end()
 
@@ -123,16 +128,10 @@ def main():
                 val_accs.append(accuracy_score(y, y_pred))
                 val_losses.append(loss.detach().item())
 
-<<<<<<< HEAD
         logging.info('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
         
         validation_generator.on_epoch_end()
-=======
-        logging.debug('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses),
-                                                                                 np.mean(val_accs)))
->>>>>>> 2755ef35653bc61c48c0cd0e98ffe41034c98988
 
-        validation_generator.on_epoch_end()
 
 
 if __name__ == "__main__":
