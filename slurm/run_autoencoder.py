@@ -6,6 +6,8 @@ import platform
 
 def parse_args():
     # Argument Parser
+    parser = argparse.ArgumentParser()
+
     parser.add_argument("--verbose", action="store_true", help="display messages")  
     parser.add_argument("--ifile", default = "None")
     parser.add_argument("--ifile_val", default="None")
@@ -40,7 +42,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    cmd = 'sbatch src/train_model.sh {0} {1} {2} {3} {4} {5} {6} {7} {8}'.format(
+    cmd = 'sbatch ./run_autoencoder.sh {0} {1} {2} {3} {4} {5} {6} {7} {8}'.format(
         args.ifile, args.ifile_val, args.odir, args.n_epochs, args.in_features, 
         args.out_features, args.linear, args.variational, args.tag
     )
