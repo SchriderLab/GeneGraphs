@@ -46,7 +46,7 @@ def main():
     )
 
     print(cmd)
-    os.system(cmd_)
+    os.system(cmd)
 
 if __name__ == '__main__':
     main()
