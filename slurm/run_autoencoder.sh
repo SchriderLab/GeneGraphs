@@ -41,5 +41,5 @@ TAG=$9
 mkdir -p ${ODIR}
 
 # GPU with Singularity
-echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 src/train_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
-singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 src/train_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose

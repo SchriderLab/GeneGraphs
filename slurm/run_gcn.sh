@@ -41,5 +41,5 @@ OUT_FEATURES=$9
 mkdir -p ${ODIR}
 
 # GPU with Singularity
-echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 src/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --idir ${IDIR} --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --verbose
-singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 src/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --idir ${IDIR} --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --verbose
+echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --idir ${IDIR} --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --verbose
+singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --idir ${IDIR} --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --verbose
