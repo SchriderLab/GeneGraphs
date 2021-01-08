@@ -18,16 +18,12 @@ def parse_arguments():
     if args.odir != "None":
         if not os.path.exists(args.odir):
             os.mkdir(args.odir)
-        else:
-            os.system('rm -rf {0}'.format(os.path.join(args.odir, '*')))
-
-    if args.ofile != "None":
-        os.system('touch {0}'.format(os.path.join(args.odir, args.ofile)))
 
     return args
 
 
 def main():
+
     args = parse_arguments()
     path_to_file = os.path.join(args.odir, args.ofile)
     with open(path_to_file, "w") as file:
