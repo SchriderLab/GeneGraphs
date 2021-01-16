@@ -84,7 +84,6 @@ def main():
         model.train()
 
         n_steps = len(generator)
-        loss_slice = deque(maxlen=2000)
         print("Len: ", len(generator))
         for j in range(n_steps):
             batch, _ = generator[j]
@@ -95,6 +94,7 @@ def main():
 
             # discriminator optimization
             for _ in range(5):
+                model.discriminator.train()
                 discriminator_optimizer.zero_grad()
                 discriminator_loss = model.discriminator_loss(z)
                 discriminator_loss.backward()
@@ -106,13 +106,13 @@ def main():
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
             loss.backward()
             encoder_optimizer.step()
+            losses.append(loss.item())
 
-            loss_slice.append(loss.item()) # change
 
             if (j + 1) % 100 == 0:
                 logging.info("root: Epoch: {}/{}, Step: {}/{}, Loss: {:.4f}".format(i+1,
                                                                        args.n_epochs, j + 1, n_steps,
-                                                                        np.mean(loss_slice))) # change
+                                                                        np.mean(losses)))
         generator.on_epoch_end()
 
         model.eval()

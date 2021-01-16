@@ -32,11 +32,12 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
     return label
 
 
-def make_node_dict(nodes, inf_nodes, mutation_list, mutations=True, n_populations=3):
+def make_node_dict(nodes, inf_nodes, mutation_list, real, mutations=True, n_populations=3):
     """Creates a dictionary mapping node IDs to their feature vectors
         Args:
             nodes (iterator): Iterator of nodes in tree sequence
             mutation_list (np array): Array of the node IDs containing mutations
+            real (boolean): whether to record the inferred trees or real trees
             mutations (boolean): Whether or not to include OHE representation of whether or not the node
                                 has a mutation
             n_populations (int): The number of populations
@@ -52,8 +53,12 @@ def make_node_dict(nodes, inf_nodes, mutation_list, mutations=True, n_population
     times = dict()
 
     # store all the inferred nodes time to normalize them (scale of 0 to 1)
-    for node in inf_nodes:
-        times[node.id] = node.time
+    if real:
+        for node in nodes:
+            times[node.id] = node.time
+    else:
+        for node in inf_nodes:
+            times[node.id] = node.time
 
     max_time = np.max(list(times.values()))
 
@@ -81,8 +86,9 @@ def parse_args():
     parser.add_argument("--ofile", default="None")
     parser.add_argument("--idir", default="None")
     parser.add_argument("--models", default = "None")
-
     parser.add_argument("--odir", default="None")
+    parser.add_argument('--real', action='store_true')
+
 
     args = parser.parse_args()
 
@@ -103,6 +109,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    real = args.real
 
     # create the output file
     ofile = h5py.File(args.ofile, 'w')
@@ -132,9 +139,13 @@ def main():
             ts_inf = tskit.load(inf)
 
             # make a dictionary for the features of each node
-            node_dict = make_node_dict(ts.nodes(), ts_inf.nodes(), ts.dump_tables().mutations.node)
+            node_dict = make_node_dict(ts.nodes(), ts_inf.nodes(), ts.dump_tables().mutations.node, real)
 
-            ts_list = ts_inf.aslist()
+            ts_list = []
+            if real:
+                ts_list = ts.aslist()
+            else:
+                ts_list = ts_inf.aslist()
 
             s_index = 0
 
