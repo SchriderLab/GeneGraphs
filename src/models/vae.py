@@ -69,61 +69,40 @@ class BaseModel(nn.Module):
             self.o_activation = o_activation
 
         for i in range(depth):
-            if i != depth - 1:
-                # add appropriate layer
-                if layer_type == "linear":
-                    self.layers.append(nn.Linear(self.in_channels, self.hidden_channels))
-                elif layer_type == "gcnconv":
-                    self.layers.append(GCNConv(self.in_channels, self.hidden_channels))
-                elif layer_type == "genconv":
-                    self.layers.append(GENConv(self.in_channels, self.hidden_channels))
-                elif layer_type == "gineconv":
-                    # need to check whether we're getting a channels size explosion for
-                    # large depths here
-                    self.layers.append(GINEConv(MLP(self.in_channels, self.in_channels*2,
-                                                    self.in_channels*4, self.hidden_channels)))
-                elif layer_type =="nnconv":
-                    self.layers.append(NNConv(self.in_channels, self.hidden_channels,
-                                              MLP([self.num_edge_features, self.num_edge_features*2,
-                                                   self.num_edge_features*4, self.in_channels*self.hidden_channels]), aggr='mean'))
-                elif layer_type == "transformerconv":
-                    self.layers.append(TransformerConv(self.in_channels, self.hidden_channels))
-                else:
-                    raise Exception
+            # add appropriate layer
+            if layer_type == "linear":
+                self.layers.append(nn.Linear(self.in_channels, self.hidden_channels))
+            elif layer_type == "gcnconv":
+                self.layers.append(GCNConv(self.in_channels, self.hidden_channels))
+            elif layer_type == "genconv":
+                self.layers.append(GENConv(self.in_channels, self.hidden_channels))
+            elif layer_type == "gineconv":
+                # need to check whether we're getting a channels size explosion for
+                # large depths here
+                self.layers.append(GINEConv(MLP(self.in_channels, self.in_channels*2,
+                                                self.in_channels*4, self.hidden_channels)))
+            elif layer_type =="nnconv":
+                self.layers.append(NNConv(self.in_channels, self.hidden_channels,
+                                            MLP([self.num_edge_features, self.num_edge_features*2,
+                                                self.num_edge_features*4, self.in_channels*self.hidden_channels]), aggr='mean'))
+            elif layer_type == "transformerconv":
+                self.layers.append(TransformerConv(self.in_channels, self.hidden_channels))
+            else:
+                raise Exception
 
-                # add activation
+            # add activation
+            if i != depth - 1:
                 if self.activation is not None:
                     self.layers.append(self.activation)
+            elif self.o_activation is not None:
+                self.layers.append(self.o_activation)
 
-                # resize channels
-                self.in_channels = self.hidden_channels
-                self.hidden_channels = self.hidden_channels * 2
+            # resize channels
+            self.in_channels = self.hidden_channels
+            self.hidden_channels = self.hidden_channels * 2
 
-            else:
-                # add final layer
-                if layer_type == "linear":
-                    self.layers.append(nn.Linear(self.hidden_channels // 2, self.out_channels))
-                elif layer_type == "gcnconv":
-                    self.layers.append(GCNConv(self.hidden_channels // 2, self.out_channels))
-                elif layer_type == "genconv":
-                    self.layers.append(GENConv(self.hidden_channels // 2, self.out_channels))
-                elif layer_type == "gineconv":
-                    # need to check whether we're getting a channels size explosion for
-                    # large depths here
-                    self.layers.append(GINEConv(MLP(self.hidden_channels // 2, self.hidden_channels,
-                                                    self.hidden_channels * 2, self.out_channels)))
-                elif layer_type == "nnconv":
-                    self.layers.append(NNConv(self.hidden_channels, self.out_channels,
-                                              MLP([self.num_edge_features, self.num_edge_features * 2,
-                                                   self.num_edge_features * 4, self.hidden_channels * self.out_channels]),
-                                              aggr='mean'))
-                elif layer_type == "transformerconv":
-                    self.layers.append(TransformerConv(self.hidden_channels // 2, self.out_channels))
-
-                # add final activation
-                if self.o_activation is not None:
-                    self.layers.append(self.o_activation)
-
+            if i == depth - 2:
+                self.hidden_channels = self.out_channels
 
     def forward(self, x):
         for layer in self.layers:
@@ -191,7 +170,9 @@ class Discriminator(nn.Module):
 
 # just using this for debugging
 if __name__ == "__main__":
-    test = BaseModel(5, 4, 4, layer_type='transformerconv', activation='relu', o_activation='softmax')
+    test = BaseModel(5, 4, 4, layer_type='transformerconv', activation='sigmoid', o_activation='softmax')
     print(test)
-    test2 = BaseModel(12, 16, 2, layer_type='gcnconv', activation='relu', o_activation=None)
+    test2 = BaseModel(12, 16, 2, layer_type='gcnconv', activation='tanh', o_activation=None)
     print(test2)
+    test3 = BaseModel(24, 12, 3, layer_type='linear', activation='relu', o_activation=None)
+    print(test3)
