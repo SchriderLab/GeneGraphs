@@ -2,15 +2,19 @@ import os.path as osp
 
 import argparse
 import torch
+import torch_geometric.nn as g_nn
 import torch.nn.functional as F
 import torch_geometric.transforms as T
-from torch_geometric.nn import GCNConv, GAE, VGAE
+from torch_geometric.nn import GCNConv, GAE, VGAE, GENConv, GINEConv, NNConv, TransformerConv
+import torch.nn as nn
 from torch_geometric.utils import train_test_split_edges, batched_negative_sampling
 from torch_geometric.nn.models.autoencoder import InnerProductDecoder
+from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Dropout
 
 EPS = 1e-5
 
-class FLLReconLoss(torch.nn.Module):
+
+class FLLReconLoss(nn.Module):
     def __init__(self):
         super(FLLReconLoss, self).__init__()
         self.decoder = InnerProductDecoder()
@@ -26,7 +30,108 @@ class FLLReconLoss(torch.nn.Module):
 
         return pos_loss + neg_loss
 
-class GCNEncoder(torch.nn.Module):
+
+def MLP(channels, batch_norm=True):
+    return Seq(*[
+        Seq(Lin(channels[i - 1], channels[i]), ReLU(), BN(channels[i]), Dropout(0.25))
+        for i in range(1, len(channels))
+    ])
+
+
+# should I add an option for a variational model?
+class BaseModel(nn.Module):
+    def __init__(self, in_channels, out_channels, depth, layer_type='nnconv', activation=None,
+                 o_activation=None, num_edge_features=None):
+        super(BaseModel, self).__init__()
+        self.in_channels = in_channels
+        self.hidden_channels = self.in_channels * 2
+        self.out_channels = out_channels
+        self.depth = depth
+        self.num_edge_features = num_edge_features
+        self.layers = nn.ModuleList()
+
+        # set hidden layer activation
+        if activation == 'relu':
+            self.activation = nn.ReLU()
+        elif activation == 'sigmoid':
+            self.activation = nn.Sigmoid()
+        elif activation == 'tanh':
+            self.activation = nn.Tanh()
+        else:
+            self.activation = activation
+
+        # set output activation
+        if o_activation == 'softmax':
+            self.o_activation = nn.Softmax()
+        elif o_activation == 'log_softmax':
+            self.o_activation = nn.LogSoftmax()
+        else:
+            self.o_activation = o_activation
+
+        for i in range(depth):
+            if i != depth - 1:
+                # add appropriate layer
+                if layer_type == "linear":
+                    self.layers.append(nn.Linear(self.in_channels, self.hidden_channels))
+                elif layer_type == "gcnconv":
+                    self.layers.append(GCNConv(self.in_channels, self.hidden_channels))
+                elif layer_type == "genconv":
+                    self.layers.append(GENConv(self.in_channels, self.hidden_channels))
+                elif layer_type == "gineconv":
+                    # need to check whether we're getting a channels size explosion for
+                    # large depths here
+                    self.layers.append(GINEConv(MLP(self.in_channels, self.in_channels*2,
+                                                    self.in_channels*4, self.hidden_channels)))
+                elif layer_type =="nnconv":
+                    self.layers.append(NNConv(self.in_channels, self.hidden_channels,
+                                              MLP([self.num_edge_features, self.num_edge_features*2,
+                                                   self.num_edge_features*4, self.in_channels*self.hidden_channels]), aggr='mean'))
+                elif layer_type == "transformerconv":
+                    self.layers.append(TransformerConv(self.in_channels, self.hidden_channels))
+                else:
+                    raise Exception
+
+                # add activation
+                if self.activation is not None:
+                    self.layers.append(self.activation)
+
+                # resize channels
+                self.in_channels = self.hidden_channels
+                self.hidden_channels = self.hidden_channels * 2
+
+            else:
+                # add final layer
+                if layer_type == "linear":
+                    self.layers.append(nn.Linear(self.hidden_channels // 2, self.out_channels))
+                elif layer_type == "gcnconv":
+                    self.layers.append(GCNConv(self.hidden_channels // 2, self.out_channels))
+                elif layer_type == "genconv":
+                    self.layers.append(GENConv(self.hidden_channels // 2, self.out_channels))
+                elif layer_type == "gineconv":
+                    # need to check whether we're getting a channels size explosion for
+                    # large depths here
+                    self.layers.append(GINEConv(MLP(self.hidden_channels // 2, self.hidden_channels,
+                                                    self.hidden_channels * 2, self.out_channels)))
+                elif layer_type == "nnconv":
+                    self.layers.append(NNConv(self.hidden_channels, self.out_channels,
+                                              MLP([self.num_edge_features, self.num_edge_features * 2,
+                                                   self.num_edge_features * 4, self.hidden_channels * self.out_channels]),
+                                              aggr='mean'))
+                elif layer_type == "transformerconv":
+                    self.layers.append(TransformerConv(self.hidden_channels // 2, self.out_channels))
+
+                # add final activation
+                if self.o_activation is not None:
+                    self.layers.append(self.o_activation)
+
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class GCNEncoder(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(GCNEncoder, self).__init__()
         self.conv1 = GCNConv(in_channels, 2 * out_channels)
@@ -36,7 +141,8 @@ class GCNEncoder(torch.nn.Module):
         x = self.conv1(x, edge_index).relu()
         return self.conv2(x, edge_index)
 
-class VariationalGCNEncoder(torch.nn.Module):
+
+class VariationalGCNEncoder(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(VariationalGCNEncoder, self).__init__()
         self.conv1 = GCNConv(in_channels, 2 * out_channels)
@@ -47,7 +153,8 @@ class VariationalGCNEncoder(torch.nn.Module):
         x = self.conv1(x, edge_index).relu()
         return self.conv_mu(x, edge_index), self.conv_logstd(x, edge_index)
 
-class LinearEncoder(torch.nn.Module):
+
+class LinearEncoder(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(LinearEncoder, self).__init__()
         self.conv = GCNConv(in_channels, out_channels)
@@ -55,7 +162,8 @@ class LinearEncoder(torch.nn.Module):
     def forward(self, x, edge_index):
         return self.conv(x, edge_index)
 
-class VariationalLinearEncoder(torch.nn.Module):
+
+class VariationalLinearEncoder(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(VariationalLinearEncoder, self).__init__()
         self.conv_mu = GCNConv(in_channels, out_channels)
@@ -64,17 +172,26 @@ class VariationalLinearEncoder(torch.nn.Module):
     def forward(self, x, edge_index):
         return self.conv_mu(x, edge_index), self.conv_logstd(x, edge_index)
 
-class Discriminator(torch.nn.Module):
+
+class Discriminator(nn.Module):
     def __init__(self, out_channels):
         super(Discriminator, self).__init__()
         self.layers = torch.nn.Sequential(
-            torch.nn.Linear(out_channels, out_channels*2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(out_channels*2, out_channels*2),
-            torch.nn.ReLU(),
-            torch.nn.Linear(out_channels*2, out_channels)
+            nn.Linear(out_channels, out_channels * 2),
+            nn.ReLU(),
+            nn.Linear(out_channels * 2, out_channels * 2),
+            nn.ReLU(),
+            nn.Linear(out_channels * 2, out_channels)
         )
+
     def forward(self, x):
         x = self.layers(x)
         return x
 
+
+# just using this for debugging
+if __name__ == "__main__":
+    test = BaseModel(5, 4, 4, layer_type='transformerconv', activation='relu', o_activation='softmax')
+    print(test)
+    test2 = BaseModel(12, 16, 2, layer_type='gcnconv', activation='relu', o_activation=None)
+    print(test2)
