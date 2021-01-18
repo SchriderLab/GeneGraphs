@@ -41,13 +41,13 @@ def MLP(channels, batch_norm=True):
 # should I add an option for a variational model?
 class BaseModel(nn.Module):
     def __init__(self, in_channels, out_channels, depth, layer_type='nnconv', activation=None,
-                 o_activation=None, num_edge_features=None):
+                 o_activation=None, num_edge_features=None, model_type='sequential'):
         super(BaseModel, self).__init__()
         self.in_channels = in_channels
-        self.hidden_channels = self.in_channels * 2
         self.out_channels = out_channels
         self.depth = depth
         self.num_edge_features = num_edge_features
+        self.model_type = model_type
         self.layers = nn.ModuleList()
 
         # set hidden layer activation
@@ -68,6 +68,11 @@ class BaseModel(nn.Module):
         else:
             self.o_activation = o_activation
 
+        if depth <= 2:
+            self.hidden_channels = self.out_channels
+        else:
+            self.hidden_channels = self.in_channels * 2
+
         for i in range(depth):
             # add appropriate layer
             if layer_type == "linear":
@@ -81,7 +86,7 @@ class BaseModel(nn.Module):
                 # large depths here
                 self.layers.append(GINEConv(MLP(self.in_channels, self.in_channels*2,
                                                 self.in_channels*4, self.hidden_channels)))
-            elif layer_type =="nnconv":
+            elif layer_type == "nnconv":
                 self.layers.append(NNConv(self.in_channels, self.hidden_channels,
                                             MLP([self.num_edge_features, self.num_edge_features*2,
                                                 self.num_edge_features*4, self.in_channels*self.hidden_channels]), aggr='mean'))
@@ -98,16 +103,29 @@ class BaseModel(nn.Module):
                 self.layers.append(self.o_activation)
 
             # resize channels
-            self.in_channels = self.hidden_channels
-            self.hidden_channels = self.hidden_channels * 2
+            if self.model_type != 'variational' or i != depth - 2:
+                self.in_channels = self.hidden_channels
+                self.hidden_channels = self.hidden_channels * 2
 
+            # fixing channel sizes for output layers
             if i == depth - 2:
-                self.hidden_channels = self.out_channels
+                if self.model_type == 'sequential':
+                    self.hidden_channels = self.out_channels
+
+            if i >= depth - 3:
+                if self.model_type == 'variational':
+                    self.activation = None
+                    self.hidden_channels = self.out_channels
 
     def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-        return x
+        if self.model_type == 'sequential':
+            for layer in self.layers:
+                x = layer(x)
+            return x
+        elif self.model_type == 'variational':
+            for layer in self.layers[:-2]:
+                x = layer(x)
+            return self.layers[-2](x), self.layers[-1](x)
 
 
 class GCNEncoder(nn.Module):
@@ -170,9 +188,8 @@ class Discriminator(nn.Module):
 
 # just using this for debugging
 if __name__ == "__main__":
-    test = BaseModel(5, 4, 4, layer_type='transformerconv', activation='sigmoid', o_activation='softmax')
+    test = BaseModel(5, 12, 2, layer_type='gcnconv', activation=None, model_type='variational')
     print(test)
-    test2 = BaseModel(12, 16, 2, layer_type='gcnconv', activation='tanh', o_activation=None)
+    print(test.layers[-2])
+    test2 = BaseModel(24, 12, 3, layer_type='linear', activation='relu', o_activation=None)
     print(test2)
-    test3 = BaseModel(24, 12, 3, layer_type='linear', activation='relu', o_activation=None)
-    print(test3)
