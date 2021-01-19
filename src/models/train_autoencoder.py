@@ -11,7 +11,7 @@ import platform
 import torch
 from torch_geometric.nn import GCNConv, GAE, VGAE
 
-from vae import GCNEncoder, VariationalGCNEncoder, LinearEncoder, VariationalLinearEncoder, FLLReconLoss
+from vae import BaseModel, GCNEncoder, VariationalGCNEncoder, LinearEncoder, VariationalLinearEncoder, FLLReconLoss
 from data_on_the_fly_classes import DataGenerator
 from collections import deque
 from scipy.sparse import coo_matrix, csc_matrix, lil_matrix
@@ -40,6 +40,14 @@ def parse_args():
 
     parser.add_argument("--linear", action = "store_true")
     parser.add_argument("--variational", action = "store_true")
+    parser.add_argument("--base", action = "store_true")
+    parser.add_argument("--depth", default="2")
+    parser.add_argument("--layer_type", default=None)
+    parser.add_argument("--activation", default=None)
+    parser.add_argument("--o_activation", default=None)
+    parser.add_argument("--num_edge_features", default=None)
+    parser.add_argument("--model_type", default="sequential")
+    parser.add_argument("--num_heads", default=None)
 
     parser.add_argument("--tag", default = "test")
 
@@ -67,16 +75,30 @@ def main():
     num_features = int(args.in_features)
     out_channels = int(args.out_features)
 
-    if not args.variational:
-        if not args.linear:
-            model = GAE(GCNEncoder(num_features, out_channels))
+    if args.base:
+        if args.num_heads is not None:
+            num_heads = int(args.num_heads)
         else:
-            model = GAE(LinearEncoder(num_features, out_channels))
+            num_heads = args.num_heads
+        encoder = BaseModel(num_features, out_channels, int(args.depth), args.layer_type,
+                          args.activation, args.o_activation, args.num_edge_features,
+                          args.model_type, num_heads)
+        print(encoder) # delete
+    elif args.variational:
+        if not args.linear:
+            encoder = GCNEncoder(num_features, out_channels)
+        else:
+            encoder = LinearEncoder(num_features, out_channels)
     else:
         if args.linear:
-            model = VGAE(VariationalLinearEncoder(num_features, out_channels))
+            encoder = VariationalLinearEncoder(num_features, out_channels)
         else:
-            model = VGAE(VariationalGCNEncoder(num_features, out_channels))
+            encoder = VariationalGCNEncoder(num_features, out_channels)
+
+    if args.variational:
+        model = VGAE(encoder)
+    else:
+        model = GAE(encoder)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)

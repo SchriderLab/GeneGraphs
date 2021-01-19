@@ -38,17 +38,22 @@ def MLP(channels, batch_norm=True):
     ])
 
 
-# should I add an option for a variational model?
+# this can be significantly simplified using list comprehensions and the examples
+# seen here: https://github.com/FrancescoSaverioZuppichini/Pytorch-how-and-when-to-use-Module-Sequential-ModuleList-and-ModuleDict
+# under "dynamic sequential"
+# for now, only use activations for non-graph networks
 class BaseModel(nn.Module):
     def __init__(self, in_channels, out_channels, depth, layer_type='nnconv', activation=None,
-                 o_activation=None, num_edge_features=None, model_type='sequential'):
+                 o_activation=None, num_edge_features=None, model_type='sequential', num_heads=None):
         super(BaseModel, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.depth = depth
-        self.num_edge_features = num_edge_features
         self.model_type = model_type
         self.layers = nn.ModuleList()
+        if num_edge_features is not None:
+            self.num_edge_features = int(num_edge_features)
+        self.num_heads = num_heads
 
         # set hidden layer activation
         if activation == 'relu':
@@ -91,7 +96,7 @@ class BaseModel(nn.Module):
                                             MLP([self.num_edge_features, self.num_edge_features*2,
                                                 self.num_edge_features*4, self.in_channels*self.hidden_channels]), aggr='mean'))
             elif layer_type == "transformerconv":
-                self.layers.append(TransformerConv(self.in_channels, self.hidden_channels))
+                self.layers.append(TransformerConv(self.in_channels, self.hidden_channels, self.num_heads))
             else:
                 raise Exception
 
@@ -105,20 +110,31 @@ class BaseModel(nn.Module):
             # resize channels
             if self.model_type != 'variational' or i != depth - 2:
                 self.in_channels = self.hidden_channels
-                self.hidden_channels = self.hidden_channels * 2
+                self.hidden_channels *= 2
+                # possible to remove this?
+                if self.num_heads is not None:
+                    self.in_channels *= self.num_heads
 
             # fixing channel sizes for output layers
-            if i == depth - 2:
-                if self.model_type == 'sequential':
-                    self.hidden_channels = self.out_channels
+            if i == depth - 2 and self.model_type == 'sequential':
+                self.hidden_channels = self.out_channels
 
-            if i >= depth - 3:
-                if self.model_type == 'variational':
-                    self.activation = None
-                    self.hidden_channels = self.out_channels
+            if i >= depth - 3 and self.model_type == 'variational':
+                self.activation = None
+                self.hidden_channels = self.out_channels
 
-    def forward(self, x):
-        if self.model_type == 'sequential':
+    def forward(self, x, edge_index=None):
+        if edge_index is not None:
+            if self.model_type == 'sequential':
+                for layer in self.layers[:-1]:
+                    x = layer(x, edge_index).relu()
+                x = self.layers[-1](x, edge_index)
+                return x
+            elif self.model_type == 'variational':
+                for layer in self.layers[:-2]:
+                    x = layer(x, edge_index).relu()
+                return self.layers[-2](x, edge_index), self.layers[-1](x, edge_index)
+        elif self.model_type == 'sequential':
             for layer in self.layers:
                 x = layer(x)
             return x
@@ -188,8 +204,9 @@ class Discriminator(nn.Module):
 
 # just using this for debugging
 if __name__ == "__main__":
-    test = BaseModel(5, 12, 2, layer_type='gcnconv', activation=None, model_type='variational')
+    test = BaseModel(5, 12, 6, layer_type='gcnconv', activation='relu', model_type='variational')
     print(test)
-    print(test.layers[-2])
+    print(test.layers[-1])
+    print(test.layers[:-2])
     test2 = BaseModel(24, 12, 3, layer_type='linear', activation='relu', o_activation=None)
     print(test2)
