@@ -96,9 +96,14 @@ class BaseModel(nn.Module):
                                             MLP([self.num_edge_features, self.num_edge_features*2,
                                                 self.num_edge_features*4, self.in_channels*self.hidden_channels]), aggr='mean'))
             elif layer_type == "transformerconv":
-                self.layers.append(TransformerConv(self.in_channels, self.hidden_channels, self.num_heads))
+                if i == depth - 1:
+                    self.layers.append(TransformerConv(self.in_channels, self.hidden_channels))
+                else:
+                    self.layers.append(TransformerConv(self.in_channels, self.hidden_channels, self.num_heads))
             else:
+                print("Specified layer type not supported")
                 raise Exception
+
 
             # add activation
             if i != depth - 1:
