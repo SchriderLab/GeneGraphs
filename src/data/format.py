@@ -92,6 +92,11 @@ def parse_args():
 
     args = parser.parse_args()
 
+    if args.real:
+        print("Making real trees")
+    else:
+        print("Making inferred trees")
+
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
         logging.debug("running in verbose mode")

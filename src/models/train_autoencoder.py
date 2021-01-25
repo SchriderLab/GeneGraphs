@@ -72,7 +72,7 @@ def parse_args():
     return args
 
 
-def train_encoder(args, encoder, generator, validation_generator, device, criterion, losses, val_loss):
+def train_autoencoder(args, encoder, generator, validation_generator, device, criterion, losses, val_loss):
 
     if args.model_type == 'variational':
         model = VGAE(encoder)
@@ -242,7 +242,7 @@ def main():
         train_adversarial_autoencoder(args, encoder, generator, validation_generator, device, criterion, losses,
                                       val_loss)
     else:
-        train_encoder(args, encoder, generator, validation_generator, device, criterion, losses, val_loss)
+        train_autoencoder(args, encoder, generator, validation_generator, device, criterion, losses, val_loss)
 
 
 if __name__ == '__main__':

@@ -207,6 +207,26 @@ class Discriminator(nn.Module):
         return x
 
 
+class TransformerEncoder(nn.Module):
+    def __init__(self, in_channels: list, out_channels: list, num_heads: list, num_layers: int):
+        super(TransformerConv, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        self.layers = nn.ModuleList()
+
+        for i in range(self.num_layers):
+            self.layers.append(TransformerConv(self.in_channels[i], self.out_channels[i],
+                                               self.num_heads[i]))
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer[x]
+        return x
+
+
+
 # just using this for debugging
 if __name__ == "__main__":
     test = BaseModel(5, 12, 6, layer_type='gcnconv', activation='relu', model_type='variational')

@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import matplotlib.patches as mpatches
+from mpl_toolkits import mplot3d
 import networkx as nx
 import gmatch4py as gm # added
 
@@ -10,6 +11,7 @@ def graph_comparison(graph1, graph2):
     ged = gm.GraphEditDistance(1, 1, 1, 1)  # all edit costs are equal to 1
     result = ged.compare([graph1, graph2], None)
     return ged.distance(result)
+
 
 def graph_visualization(graph1, graph2):
     pass
@@ -19,21 +21,41 @@ def graph_visualization(graph1, graph2):
     # nx.draw(graphed2)
     # plt.show()
 
-def z_plotting(data, type='pca'):
-    arr = data['Z']
-    if type == 'tsne':
-        plotting = TSNE()
+
+def z_plotting_on_the_fly(data, y, dims=2, num_classes=2, reduction='PCA'):
+
+    y_plot = []
+    cdict = {0: 'red', 1: 'blue', 2: 'green'}
+
+    for elem in y:
+        y_plot.extend([elem.item()]*99)
+    if reduction == 'TSNE':
+        plotting = TSNE(n_components=dims)
+        reduction = 't-SNE' # just changing it for nicer look when we print later
     else:
-        plotting = PCA(n_components=2)
-    arr_fitted = plotting.fit_transform(arr)
-    if data['label'] == 0:
-        plt.scatter(arr_fitted[:, 0], arr_fitted[:, 1], c='b')
-    else:
-        plt.scatter(arr_fitted[:, 0], arr_fitted[:, 1], marker='x', c='r')
+        plotting = PCA(n_components=dims)
+    arr_fitted = plotting.fit_transform(data)
+
+    if dims == 3:
+        fig = plt.figure(figsize=(10, 7))
+        ax = plt.axes(projection="3d")
+
+    i = 0
+    for x in range(num_classes):
+        class_slice = arr_fitted[i:i+495, :]
+        y_slice = y_plot[i:i+495]
+        if dims == 3:
+            ax.scatter3D(class_slice[:, 0], class_slice[:, 1], class_slice[:, 2], c=cdict[x], label="Model {}".format(x+1))
+        else:
+            plt.scatter(class_slice[:, 0], class_slice[:, 1], c=cdict[x], label="Model {}".format(x+1))
+        i += 495
+
+    plt.title("{} Demographic Models".format(reduction))
+    plt.legend()
+    plt.show()
 
 
-
-
+# deprecated
 def main():
     for i in range(0, 8):
         # file = '../../results_y/0000{}_000010.npz'.format(i + 1) # arbitrary slice of data
