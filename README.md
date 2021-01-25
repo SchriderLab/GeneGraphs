@@ -1,12 +1,8 @@
 # GeneGraphs
 
 Work in progress.  To do:
-- [x] Routines for generating and formatting data from Ariella's demographic models
-- [x] AE and VAE GCN models
-- [ ] Make GCN classifier
-- [ ] Make training script(s) save models, output training results, work with > 1 GPUs
-- [ ] Make other classifiers temporal and otherwise and potentially other auto-encoders
-- [ ] Add flexibility for node and edge features (right now: node features (time (0 to 1) + hot encoded population), no edge features for now)
+- [ ] Make generalized Classifier class
+- [ ] Make time / sequence based classifier models (GCN + 1D CNN and/or RNN)
 
 Generate some graphs with msprime (Choices of demographic model to simulate are `constant`, `growth`, `reduction`, `constant_2pop`, 
 `constant_3pop`, `single_pulse_uni_AB`, `single_pulse_uni_BA`, `single_pulse_bi`, `multi_pulse_uni_AB`, 
