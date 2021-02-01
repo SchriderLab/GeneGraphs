@@ -80,7 +80,7 @@ def main():
 
             n_nodes = z.shape[0]
 
-            if ix % 10 == 0:
+            if ix % 100 == 1:
                 z_plotting_on_the_fly(z, y, dims=3, reduction='TSNE')
 
             edge_index = batch.edge_index.detach().cpu().numpy().astype(np.int32)

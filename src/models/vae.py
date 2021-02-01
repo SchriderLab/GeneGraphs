@@ -209,7 +209,7 @@ class Discriminator(nn.Module):
 
 class TransformerEncoder(nn.Module):
     def __init__(self, in_channels: list, out_channels: list, num_heads: list, num_layers: int):
-        super(TransformerConv, self).__init__()
+        super(TransformerEncoder, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_heads = num_heads
@@ -220,10 +220,10 @@ class TransformerEncoder(nn.Module):
             self.layers.append(TransformerConv(self.in_channels[i], self.out_channels[i],
                                                self.num_heads[i]))
 
-    def forward(self, x):
-        for layer in self.layers:
-            x = layer[x]
-        return x
+    def forward(self, x, edge_index):
+        for layer in self.layers[:-1]:
+            x = layer(x, edge_index).relu()
+        return self.layers[-1](x, edge_index)
 
 
 

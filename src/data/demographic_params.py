@@ -19,7 +19,7 @@ def define_params(fixed_params=None):
         u = fixed_params['u']
     else:
         u = 1.2e-8 / 10
-    r = 1e-8
+    r = 1e-8 # change to 1e-11
 
     if fixed_params and fixed_params['N0']:
         N0 = fixed_params['N0']
@@ -54,16 +54,16 @@ def define_params(fixed_params=None):
     if fixed_params and fixed_params['td']:
         td = fixed_params['td']
     else:
-        priors['td'] = (4000, 40000) # changed from priors['td'] = (100, 8000)
+        priors['td'] = (100, 8000) # changed from priors['td'] = (4000, 40000)
         td = selectVal(priors['td'][0], priors['td'][1])
 
     if fixed_params and fixed_params['tm']:
         tm = fixed_params['tm']
     else:
-        priors['tm'] = (0, 1)
-        # priors['tm'] = (1, td)
-        tm = selectVal(priors['tm'][0], priors['tm'][1]) * td
-        # tm = selectVal(priors['tm'][0], priors['tm'][1])
+        priors['tm'] = (0, 1) # comment out for test
+        tm = selectVal(priors['tm'][0], priors['tm'][1]) * td # comment out for test
+        # priors['tm'] = 1 # temporarily change to priors['tm'] = (0, 1)
+        # tm = td # temporarily changed from tm = selectVal(priors['tm'][0], priors['tm'][1]) * td
 
     if fixed_params and fixed_params['tm2']:
         tm2 = fixed_params['tm2']

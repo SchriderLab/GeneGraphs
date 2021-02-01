@@ -216,7 +216,10 @@ def get_sites(tree_sequence):
     p = np.array([])
     for site in tree_sequence.sites():
         p = np.append(p, [site.position])
-    positions = p/p[-1]
+    if len(p) > 0:
+        positions = p/p[-1]
+    else:
+        return None
     return positions
 
 
@@ -233,6 +236,8 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
 
     for i, tree_sequence in enumerate(tree_replicates):
         positions = get_sites(tree_sequence)
+        if positions is None:
+            continue
         write_param_file(params, param_file_path, j)
         print('tree_sequence has a sequence length of {} Mb'.format(tree_sequence.sequence_length / 1000000))
         print('tree_sequence has {} samples'.format(tree_sequence.num_samples))
