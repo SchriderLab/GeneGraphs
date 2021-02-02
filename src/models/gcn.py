@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import NNConv, TransformerConv, GCNConv
+from torch_geometric.nn import TransformerConv, GCNConv, GENConv
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Dropout
 from torch_geometric.nn import global_max_pool, global_add_pool, global_mean_pool
-from vae import BaseModel
 import configparser
 
 
@@ -43,7 +42,7 @@ def get_encoder(config):
         num_heads = None
 
     return Encoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
-                   num_heads=num_heads)
+                   config.get('encoder_params', 'layer_type'), num_heads=num_heads)
 
 
 def get_mlp(config):
@@ -89,7 +88,7 @@ class Classifier(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels, out_channels, depth, layer_type='nnconv', num_heads=None):
+    def __init__(self, in_channels, out_channels, depth, layer_type, num_heads=None):
         super(Encoder, self).__init__()
         self.parameters = locals()
         self.layers = nn.ModuleList()
@@ -97,8 +96,8 @@ class Encoder(nn.Module):
         assert all(len(in_channels) == len(out_channels) == depth)
 
         for i in range(depth):
-            if layer_type == 'nnconv':
-                self.layers.append(NNConv(self.parameters['in_channels'][i], self.parameters['out_channels'][i]))
+            if layer_type == 'genconv':
+                self.layers.append(GENConv(self.parameters['in_channels'][i], self.parameters['out_channels'][i]))
             elif layer_type == 'transformerconv':
                 self.layers.append(
                     TransformerConv(self.parameters['in_channels'][i], self.parameters['out_channels'][i],
