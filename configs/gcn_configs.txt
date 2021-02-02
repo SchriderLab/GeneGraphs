@@ -6,7 +6,7 @@ layer_type = gcnconv
 num_heads = None
 
 [mlp_params]
-channels = 16, 32, 32, 2 
+channels = 16,32,32,2 
 batch_norm = True
 
 [pooling_params]
