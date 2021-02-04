@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import TransformerConv, GCNConv, GENConv
+from torch_geometric.nn import TransformerConv, GCNConv, GATConv
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Dropout
 from torch_geometric.nn import global_max_pool, global_add_pool, global_mean_pool
 import configparser
@@ -107,6 +107,94 @@ class Encoder(nn.Module):
             else:
                 print("specified layer type not supported")
                 raise Exception
+
+    def forward(self, x, edge_index):
+        for layer in self.layers:
+            x = layer(x, edge_index).relu()
+        return x
+
+
+class TransformerEncoder(nn.Module):
+    def __init__(self, in_channels: list, out_channels: list, depth: int, num_heads=1, edge_dim=None, dropout=0.0):
+        super(TransformerEncoder, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_heads = num_heads
+        self.depth = depth
+        self.edge_dim = edge_dim
+        self.dropout = dropout
+        self.layers = nn.ModuleList()
+
+        assert all(len(self.in_channels) == len(self.out_channels) == self.depth)
+
+        for i in range(self.depth):
+            if isinstance(self.num_heads, list):
+                if self.edge_dim is not None:
+                    self.layers.append(TransformerConv(self.in_channels[i], self.out_channels[i],
+                                                       self.num_heads[i], edge_dim=self.edge_dim, dropout=self.dropout))
+                else:
+                    self.layers.append(TransformerConv(self.in_channels[i], self.out_channels[i],
+                                                       self.num_heads[i], dropout=self.dropout))
+            elif self.edge_dim is not None:
+                self.layers.append(TransformerConv(self.in_channels[i], self.out_channels[i], edge_dim=self.edge_dim,
+                                                   dropout=self.dropout))
+            else:
+                self.layers.append(TransformerConv(self.in_channels[i], self.out_channels[i], dropout=self.dropout))
+
+    def forward(self, x, edge_index):
+        for layer in self.layers:
+            x = layer(x, edge_index).relu()
+        return x
+
+
+class GCNEncoder(nn.Module):
+    def __init__(self, in_channels: list, out_channels: list, depth: int, normalize=False):
+        super(GCNEncoder, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.depth = depth
+        self.normalize = normalize
+        self.layers = nn.ModuleList()
+
+        assert all(len(self.in_channels) == len(self.out_channels) == self.depth)
+
+        for i in range(self.depth):
+            self.layers.append(GCNConv(self.in_channels[i], self.out_channels[i], normalize=self.normalize))
+
+    def forward(self, x, edge_index):
+        for layer in self.layers:
+            x = layer(x, edge_index).relu()
+        return x
+
+
+class GATEncoder(nn.Module):
+    def __init__(self, in_channels: list, out_channels: list, num_heads, depth: int, negative_slope=.2, dropout=0.0):
+        super(GATEncoder, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.num_heads = num_heads
+        self.depth = depth
+        self.negative_slope = negative_slope
+        self.dropout = dropout
+        self.layers = nn.ModuleList()
+
+        assert all(len(self.in_channels) == len(self.out_channels) == self.depth)
+
+        for i in range(self.depth):
+            if isinstance(self.num_heads, list):
+                if self.edge_dim is not None:
+                    self.layers.append(GATConv(self.in_channels[i], self.out_channels[i], self.num_heads[i],
+                                               negative_slope=self.negative_slope, dropout=self.dropout))
+                else:
+                    self.layers.append(GATConv(self.in_channels[i], self.out_channels[i],
+                                               self.num_heads[i], negative_slope=self.negative_slope,
+                                               dropout=self.dropout))
+            elif self.edge_dim is not None:
+                self.layers.append(GATConv(self.in_channels[i], self.out_channels[i],
+                                           negative_slope=self.negative_slope, dropout=self.dropout))
+            else:
+                self.layers.append(GATConv(self.in_channels[i], self.out_channels[i],
+                                           negative_slope=self.negative_slope, dropout=self.dropout))
 
     def forward(self, x, edge_index):
         for layer in self.layers:
