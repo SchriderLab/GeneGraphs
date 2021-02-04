@@ -41,8 +41,19 @@ def get_encoder(config):
     else:
         num_heads = None
 
-    return Encoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
-                   config.get('encoder_params', 'layer_type'), num_heads=num_heads)
+    layer_type = config.get("encoder_params", "layer_type")
+
+    if layer_type == "transformer_conv":
+        return TransformerEncoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
+                                  num_heads=num_heads, edge_dim=int(config.get("transformer_params", "edge_dim")),
+                                  dropout=float(config.get("transformer_params", "dropout")))
+    elif layer_type == "gat_conv":
+        return GATEncoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
+                          num_heads=num_heads, negative_slope=float(config.get("gat_params", "negative_slope")),
+                          dropout=float(config.get("gat_params", "dropout")))
+    elif layer_type == "gcn_conv":
+        return GCNEncoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
+                          normalize=config.getboolean("gcn_params", "normalize"))
 
 
 def get_mlp(config):
@@ -85,33 +96,6 @@ class Classifier(nn.Module):
             x = apply_pooling(self.pooling, x, batch)
         x = self.mlp(x)
         return F.log_softmax(x, dim=1)  # I can make this a general call to any output activation
-
-
-class Encoder(nn.Module):
-    def __init__(self, in_channels, out_channels, depth, layer_type, num_heads=None):
-        super(Encoder, self).__init__()
-        self.parameters = locals()
-        self.layers = nn.ModuleList()
-
-        assert all(len(in_channels) == len(out_channels) == depth)
-
-        for i in range(depth):
-            if layer_type == 'genconv':
-                self.layers.append(GENConv(self.parameters['in_channels'][i], self.parameters['out_channels'][i]))
-            elif layer_type == 'transformerconv':
-                self.layers.append(
-                    TransformerConv(self.parameters['in_channels'][i], self.parameters['out_channels'][i],
-                                    self.parameters['num_heads'][i]))
-            elif layer_type == 'gcnconv':
-                self.layers.append(GCNConv(self.parameters['in_channels'][i], self.parameters['out_channels'][i]))
-            else:
-                print("specified layer type not supported")
-                raise Exception
-
-    def forward(self, x, edge_index):
-        for layer in self.layers:
-            x = layer(x, edge_index).relu()
-        return x
 
 
 class TransformerEncoder(nn.Module):
