@@ -37,9 +37,16 @@ OUT_FEATURES=$6
 LINEAR=$7
 VARIATIONAL=$8
 TAG=$9
+ADVERSARIAL=${10}
 
 mkdir -p ${ODIR}
 
 # GPU with Singularity
-echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
-singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+if [ ADVERSARIAL ]
+then
+    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_adversarial_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_adversarial_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+else
+    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_PATH/$SIMG_NAME python3 ../src/models/train_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --in_features ${IN_FEATURES} --out_features ${OUT_FEATURES} --linear ${LINEAR} --variational ${VARIATIONAL} --tag ${TAG} --verbose
+fi

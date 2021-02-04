@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 import h5py
 from data_on_the_fly_classes import DataGenerator
-from gcn import GCN
+from gcn import GCN, Classifier
 
 from torch.nn import CrossEntropyLoss, NLLLoss, DataParallel
 from collections import deque
@@ -21,6 +21,7 @@ def parse_args():
     parser.add_argument("--verbose", action="store_true", help="display messages")
     parser.add_argument("--ifile", default="None")
     parser.add_argument("--ifile_val", default="None")
+    parser.add_argument("--config", default="None")
 
     parser.add_argument("--idir", default="None")
     parser.add_argument("--odir", default="None")
@@ -29,8 +30,8 @@ def parse_args():
     parser.add_argument("--lr", default="0.01")
     parser.add_argument("--weight_decay", default="5e-4")
 
-    parser.add_argument("--in_features", default = "6")
-    parser.add_argument("--out_features", default = "2")
+    # parser.add_argument("--in_features", default = "6")
+    # parser.add_argument("--out_features", default = "2")
 
     args = parser.parse_args()
 
@@ -59,7 +60,7 @@ def main():
     out_channels = int(args.out_features)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = GCN(num_features, out_channels)
+    model = Classifier(args.config)
     model.to(device)
 
     # data generator objects for training and validation respectively

@@ -1,6 +1,6 @@
 [encoder_params]
 in_channels = 6,12,24,24
-out_channels = 12,24,24,16
+out_channels = 12,24,24,2
 depth = 4
 layer_type = gcnconv
 num_heads = None
