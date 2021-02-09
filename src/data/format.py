@@ -114,7 +114,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    real = args.real
+    is_real = args.real
 
     # create the output file
     ofile = h5py.File(args.ofile, 'w')
@@ -147,7 +147,7 @@ def main():
             node_dict = make_node_dict(ts.nodes(), ts_inf.nodes(), ts.dump_tables().mutations.node, real)
 
             ts_list = []
-            if real:
+            if is_real:
                 ts_list = ts.aslist()
             else:
                 ts_list = ts_inf.aslist()
