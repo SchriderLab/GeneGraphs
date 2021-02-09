@@ -28,6 +28,7 @@ def creatDir(dir):
         if not os.path.isdir(dir):
             raise
 
+
 def choose_model(model):
     if model == 'constant':
         model_func = sim_constant
@@ -131,8 +132,7 @@ def parse_arguments():
     parser.add_argument("--samples",
                         help="sample size", type=int, dest="sample_size", required=False)
     parser.add_argument("--inferred",
-                        help="use inferred trees", action = 'store_true', dest="inferred", required=False)
-
+                        help="use inferred trees", action='store_true', dest="inferred", required=False)
 
     args = parser.parse_args()
     out_dir = args.out_dir
@@ -217,13 +217,14 @@ def get_sites(tree_sequence):
     for site in tree_sequence.sites():
         p = np.append(p, [site.position])
     if len(p) > 0:
-        positions = p/p[-1]
+        positions = p / p[-1]
     else:
         return None
     return positions
 
 
-def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout, inferred, out_dir):
+def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout, inferred,
+              out_dir):
     print('simulating 1 locus replicate')
     print('sim_locus')
     tree_replicates, params, y, label = model_func(L, in_params, locus_replicates)
@@ -257,7 +258,6 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
                     genotypes = ''.join(str(e) for e in indiv)
                     f.write('{}\n'.format(genotypes))
 
-
         with tsinfer.SampleData(
                 path=os.path.join(out_dir, "inferred{0}.samples".format(j)),
                 sequence_length=tree_sequence.sequence_length,
@@ -274,11 +274,12 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
     filename = '{}_{}.npz'.format(out_file_path, j)
 
     print('save tree_sequence to file {}\n'.format(filename))
-    np.savez_compressed(filename, X=tree_constant_np_matrix, y=y, z=label, p=positions)
-    tree_sequence.dump('{}_{:06d}.ts'.format(out_file_path, j))
-
-
-    inferred_ts.dump('{}_{:06d}_inferred.ts'.format(out_file_path, j))
+    try:
+        np.savez_compressed(filename, X=tree_constant_np_matrix, y=y, z=label, p=positions)
+        tree_sequence.dump('{}_{:06d}.ts'.format(out_file_path, j))
+        inferred_ts.dump('{}_{:06d}_inferred.ts'.format(out_file_path, j))
+    except:
+        pass
 
     return max_snps
 
@@ -356,9 +357,11 @@ def main():
         else:
             in_params, priors = define_params(fixed_params)
         if locus_replicates > 1:
-            max_snps = sim_locus_reps(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout)
+            max_snps = sim_locus_reps(model_func, L, in_params, param_file_path, j, out_file_path, max_snps,
+                                      locus_replicates, msout)
         else:
-            max_snps = sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps, locus_replicates, msout, inferred, out_dir) #
+            max_snps = sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_snps,
+                                 locus_replicates, msout, inferred, out_dir)  #
 
     snp_filename = '{}_maxsnps.txt'.format(out_file_path)
     with open(snp_filename, 'w') as f:

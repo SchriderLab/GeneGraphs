@@ -54,10 +54,10 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # input features
-    num_features = int(args.in_features)
-    # number of classes (demographic models) to predict
-    out_channels = int(args.out_features)
+    # # input features
+    # num_features = int(args.in_features)
+    # # number of classes (demographic models) to predict
+    # out_channels = int(args.out_features)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Classifier(args.config)
