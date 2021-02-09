@@ -2,6 +2,7 @@ import argparse
 import torch
 import torch.nn.functional as F
 import h5py
+import configparser
 from data_on_the_fly_classes import DataGenerator
 from gcn import GCN, Classifier
 
@@ -58,9 +59,11 @@ def main():
     # num_features = int(args.in_features)
     # # number of classes (demographic models) to predict
     # out_channels = int(args.out_features)
+    config = configparser.ConfigParser()
+    config.read(args.config)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = Classifier(args.config)
+    model = Classifier(config)
     model.to(device)
 
     # data generator objects for training and validation respectively

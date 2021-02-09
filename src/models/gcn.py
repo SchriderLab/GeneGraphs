@@ -140,7 +140,7 @@ class GCNEncoder(nn.Module):
         self.normalize = normalize
         self.layers = nn.ModuleList()
 
-        assert all(len(self.in_channels) == len(self.out_channels) == self.depth)
+        len(self.in_channels) == len(self.out_channels) == self.depth
 
         for i in range(self.depth):
             self.layers.append(GCNConv(self.in_channels[i], self.out_channels[i], normalize=self.normalize))
