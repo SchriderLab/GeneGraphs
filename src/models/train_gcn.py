@@ -84,7 +84,7 @@ def main():
             batch = batch.to(device)
             y = y.to(device)
 
-            print(y.shape)
+            # print(y.shape)
 
             optimizer.zero_grad()
             y_pred = model(batch.x, batch.edge_index, batch.batch)
@@ -103,7 +103,7 @@ def main():
             optimizer.step()
 
             # change back to 100
-            if (j + 1) % 10 == 0:
+            if (j + 1) % 100 == 0:
                 logging.info("root: Epoch: {}/{}, Step: {}, Loss: {:.3f}, Acc: {:.3f}".format(epoch+1,
                                                                        args.n_epochs, j + 1,
                                                                         np.mean(losses), np.mean(accuracies)))

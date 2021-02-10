@@ -44,7 +44,11 @@ def get_encoder(config):
     layer_type = config.get("encoder_params", "layer_type")
 
     if layer_type == "transformer_conv":
-        return TransformerEncoder(in_channels, out_channels, depth=int(config.get('encoder_params', 'depth')),
+        if config.get("transformer_params", "edge_dim") == "None":
+            return TransformerEncoder(in_channels, out_channels, depth=int(config.get('encoder_params', 'depth')),
+                                      num_heads=num_heads, dropout=float(config.get("transformer_params", "dropout")))
+        else:
+            return TransformerEncoder(in_channels, out_channels, depth=int(config.get('encoder_params', 'depth')),
                                   num_heads=num_heads, edge_dim=int(config.get("transformer_params", "edge_dim")),
                                   dropout=float(config.get("transformer_params", "dropout")))
     elif layer_type == "gat_conv":

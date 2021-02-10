@@ -1,0 +1,18 @@
+[encoder_params]
+in_channels = 6,12,24,24
+out_channels = 12,24,24,16
+depth = 4
+layer_type = transformer_conv
+num_heads = 2
+
+[transformer_params]
+edge_dim = None
+normalize = False
+dropout = 0.0
+
+[mlp_params]
+channels = 16,32,32,2
+batch_norm = True
+
+[pooling_params]
+pooling_type = global_max_pool
