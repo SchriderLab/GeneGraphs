@@ -44,11 +44,11 @@ def get_encoder(config):
     layer_type = config.get("encoder_params", "layer_type")
 
     if layer_type == "transformer_conv":
-        return TransformerEncoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
+        return TransformerEncoder(in_channels, out_channels, depth=int(config.get('encoder_params', 'depth')),
                                   num_heads=num_heads, edge_dim=int(config.get("transformer_params", "edge_dim")),
                                   dropout=float(config.get("transformer_params", "dropout")))
     elif layer_type == "gat_conv":
-        return GATEncoder(in_channels, out_channels, int(config.get('encoder_params', 'depth')),
+        return GATEncoder(in_channels, out_channels, depth=int(config.get('encoder_params', 'depth')),
                           num_heads=num_heads, negative_slope=float(config.get("gat_params", "negative_slope")),
                           dropout=float(config.get("gat_params", "dropout")))
     elif layer_type == "gcn_conv":
@@ -109,7 +109,7 @@ class TransformerEncoder(nn.Module):
         self.dropout = dropout
         self.layers = nn.ModuleList()
 
-        assert all(len(self.in_channels) == len(self.out_channels) == self.depth)
+        assert len(self.in_channels) == len(self.out_channels) == self.depth
 
         for i in range(self.depth):
             if isinstance(self.num_heads, list):
@@ -152,7 +152,7 @@ class GCNEncoder(nn.Module):
 
 
 class GATEncoder(nn.Module):
-    def __init__(self, in_channels: list, out_channels: list, num_heads, depth: int, negative_slope=.2, dropout=0.0):
+    def __init__(self, in_channels: list, out_channels: list, depth: int, num_heads, negative_slope=.2, dropout=0.0):
         super(GATEncoder, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -162,20 +162,12 @@ class GATEncoder(nn.Module):
         self.dropout = dropout
         self.layers = nn.ModuleList()
 
-        assert all(len(self.in_channels) == len(self.out_channels) == self.depth)
+        assert len(self.in_channels) == len(self.out_channels) == self.depth
 
         for i in range(self.depth):
             if isinstance(self.num_heads, list):
-                if self.edge_dim is not None:
-                    self.layers.append(GATConv(self.in_channels[i], self.out_channels[i], self.num_heads[i],
+                self.layers.append(GATConv(self.in_channels[i], self.out_channels[i], heads=self.num_heads[i],
                                                negative_slope=self.negative_slope, dropout=self.dropout))
-                else:
-                    self.layers.append(GATConv(self.in_channels[i], self.out_channels[i],
-                                               self.num_heads[i], negative_slope=self.negative_slope,
-                                               dropout=self.dropout))
-            elif self.edge_dim is not None:
-                self.layers.append(GATConv(self.in_channels[i], self.out_channels[i],
-                                           negative_slope=self.negative_slope, dropout=self.dropout))
             else:
                 self.layers.append(GATConv(self.in_channels[i], self.out_channels[i],
                                            negative_slope=self.negative_slope, dropout=self.dropout))

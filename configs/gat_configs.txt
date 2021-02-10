@@ -2,7 +2,7 @@
 in_channels = 6,12,24,24
 out_channels = 12,24,24,16
 depth = 4
-layer_type = gcn_conv
+layer_type = gat_conv
 num_heads = None
 
 [gat_params]
