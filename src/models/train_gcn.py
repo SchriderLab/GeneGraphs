@@ -24,7 +24,6 @@ def parse_args():
     parser.add_argument("--ifile_val", default="None")
     parser.add_argument("--config", default="None")
 
-    parser.add_argument("--idir", default="None")
     parser.add_argument("--odir", default="None")
 
     parser.add_argument("--n_epochs", default="5")

@@ -19,6 +19,8 @@
 #SBATCH --output=run-%j.log
 #SBATCH --gres=gpu:1
 #SBATCH --qos=gpu_access
+#SBATCH --mail-type=end
+#SBATCH --mail-user=nickmatt@live.unc.edu
 
 unset OMP_NUM_THREADS
 
