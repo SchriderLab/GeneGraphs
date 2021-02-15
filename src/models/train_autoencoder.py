@@ -6,6 +6,7 @@ import os
 import logging, argparse
 import itertools
 import numpy as np
+import configparser
 
 import platform
 import torch
@@ -35,24 +36,24 @@ def parse_args():
     parser.add_argument("--odir", default="None")
 
     parser.add_argument("--n_epochs", default="5")
+    parser.add_argument("--config", default="None")
 
-    parser.add_argument("--in_features", default="6", nargs='+')
-    parser.add_argument("--out_features", default="16", nargs='+')
+    # parser.add_argument("--in_features", default="6", nargs='+')
+    # parser.add_argument("--out_features", default="16", nargs='+')
 
-    parser.add_argument("--linear", action="store_true")
-    parser.add_argument("--base", action="store_true")
-    parser.add_argument("--depth", default="2")
-    parser.add_argument("--layer_type", default=None)
-    parser.add_argument("--activation", default=None)
-    parser.add_argument("--o_activation", default=None)
-    parser.add_argument("--num_edge_features", default=None)
-    parser.add_argument("--model_type", default="sequential")
-    parser.add_argument("--num_heads", default=None, nargs='+')
+    # parser.add_argument("--linear", action="store_true")
+    # parser.add_argument("--base", action="store_true")
+    # parser.add_argument("--depth", default="2")
+    # parser.add_argument("--layer_type", default=None)
+    # parser.add_argument("--activation", default=None)
+    # parser.add_argument("--o_activation", default=None)
+    # parser.add_argument("--num_edge_features", default=None)
+    # parser.add_argument("--model_type", default="sequential")
+    # parser.add_argument("--num_heads", default=None, nargs='+')
 
-    parser.add_argument("--transformer", action="store_true")
-    parser.add_argument("--variational", action="store_true")
+    parser.add_argument("--is_variational", action="store_true")
 
-    parser.add_argument("--adversarial", action="store_true")
+    parser.add_argument("--is_adversarial", action="store_true")
 
     parser.add_argument("--tag", default="test")
 
@@ -77,7 +78,7 @@ def parse_args():
 
 def train_autoencoder(args, encoder, generator, validation_generator, device, criterion, losses, val_loss):
 
-    if args.model_type == 'variational':
+    if args.is_variational:
         model = VGAE(encoder)
     else:
         model = GAE(encoder)
@@ -99,7 +100,7 @@ def train_autoencoder(args, encoder, generator, validation_generator, device, cr
             z = model.encode(batch.x, batch.edge_index)
             loss = criterion(z, batch.edge_index, batch.batch)
 
-            if args.model_type == 'variational':
+            if args.is_variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
 
             loss.backward()
@@ -118,7 +119,7 @@ def train_autoencoder(args, encoder, generator, validation_generator, device, cr
 
 def train_adversarial_autoencoder(args, encoder, generator, validation_generator, device, criterion, losses, val_loss):
 
-    if args.model_type == 'variational':
+    if args.is_variational:
         model = ARGVA(encoder, Discriminator(int(args.out_features)))
     else:
         model = ARGA(encoder, Discriminator(int(args.out_features)))
@@ -149,7 +150,7 @@ def train_adversarial_autoencoder(args, encoder, generator, validation_generator
 
             # encoder optimization
             loss = criterion(z, batch.edge_index, batch.batch)
-            if args.model_type == 'variational':
+            if args.is_variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
             loss.backward()
             encoder_optimizer.step()
@@ -178,15 +179,15 @@ def validation(model, i, validation_generator, criterion, args, device, losses):
 
         with torch.no_grad():
             z = model.encode(batch.x, batch.edge_index)
-            if args.model_type == 'adversarial':
+            if args.is_adversarial:
                 valid_disc_loss = model.discriminator_loss(z)
             loss = criterion(z, batch.edge_index, batch.batch)
 
-            if args.model_type == 'variational':
+            if args.variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
 
             validation_losses.append(loss.item())
-            if args.model_type == 'adversarial':
+            if args.is_adversarial:
                 validation_disc_losses.append(valid_disc_loss.item())
 
     validation_generator.on_epoch_end()
@@ -209,29 +210,39 @@ def validation(model, i, validation_generator, criterion, args, device, losses):
 def main():
     args = parse_args()
 
-    if args.transformer:
-        num_features = [int(x) for x in args.in_features]
-        out_channels = [int(x) for x in args.out_features]
-        depth = int(args.depth)
-        num_heads = [int(x) for x in args.num_heads]
+    config = configparser.ConfigParser()
+    config.read(args.config)
+
+    linear = config.getboolean("encoder_params", "linear")
+    base = config.getboolean("encoder_params", "base")
+    depth = int(config.get("encoder_params", "depth"))
+    layer_type = config.get("encoder_params", "layer_type")
+    activation = config.get("encoder_params", "activation")
+    if activation == "None":
+        activation = None
+    o_activation = config.get("encoder_params", "o_activation")
+    if o_activation == "None":
+        o_activation = None
+    num_edge_features = config.get("encoder_params", "num_edge_features")
+    if num_edge_features == "None":
+        num_edge_features = None
+    else:
+        num_edge_features = int(num_edge_features)
+    if num_edge_features == "None":
+        num_edge_features = None
+    model_type = config.get("encoder_params", "model_type")
+    num_heads = int(config.get("encoder_params", "num_heads"))
+    num_features = int(config.get("encoder_params", "num_features"))
+    out_channels = int(config.get("encoder_params", "out_channels"))
+
+
+    if base:
+        encoder = BaseModel(num_features, out_channels, depth, layer_type=layer_type,
+                            activation=activation, o_activation=o_activation, num_edge_features=num_edge_features,
+                            model_type=model_type, num_heads=num_heads)
 
     else:
-        num_features = int(args.in_features)
-        out_channels = int(args.out_features)
-
-    if args.base:
-        if args.num_heads is not None:
-            num_heads = int(args.num_heads[0])
-        else:
-            num_heads = args.num_heads
-        encoder = BaseModel(num_features, out_channels, int(args.depth), args.layer_type,
-                            args.activation, args.o_activation, args.num_edge_features,
-                            args.model_type, num_heads)
-
-    else:
-        if args.transformer:
-            encoder = TransformerEncoder(num_features, out_channels, num_heads, depth)
-        elif args.variational:
+        if args.variational:
             if args.linear:
                 encoder = VariationalLinearEncoder(num_features, out_channels)
             else:
@@ -252,7 +263,7 @@ def main():
     val_loss = np.inf
     criterion = FLLReconLoss()
 
-    if args.adversarial:
+    if args.is_adversarial:
         train_adversarial_autoencoder(args, encoder, generator, validation_generator, device, criterion, losses,
                                       val_loss)
     else:

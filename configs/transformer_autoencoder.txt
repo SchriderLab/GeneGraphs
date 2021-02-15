@@ -1,0 +1,12 @@
+[encoder_params]
+linear = False
+base = True
+depth = 4
+layer_type = transformerconv
+activation = None
+o_activation = None
+num_edge_features = None
+model_type = sequential
+num_heads = 3
+num_features = 6
+out_channels = 10
