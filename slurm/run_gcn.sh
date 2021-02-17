@@ -31,14 +31,13 @@ SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_pro
 IFILE=$1
 IFILE_VAL=$2
 CONFIGS=$3
-IDIR=$4
-ODIR=$5
-N_EPOCHS=$6
-LR=$7
-WEIGHT_DECAY=$8
+ODIR=$4
+N_EPOCHS=$5
+LR=$6
+WEIGHT_DECAY=$7
 
 mkdir -p ${ODIR}
 
 # GPU with Singularity
-echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS} --idir ${IDIR} --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --verbose
-singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS} --idir ${IDIR} --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --verbose
+echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --verbose
+singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --lr ${LR} --weight_decay ${WEIGHT_DECAY} --verbose
