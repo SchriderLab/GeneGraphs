@@ -24,14 +24,17 @@ def load_data(h5file):
     labs = list(rawh5.keys())
     out_dict = {}
 
-    for lab in labs[:1]:
-        print(lab)
+    for lab in labs:
+        # print(lab)
         out_dict[lab] = []
-        for batch in list(rawh5[lab].keys())[:1]:
-            for rep in list(rawh5[lab][str(batch)].keys())[:1]:
-                edges = rawh5[lab][str(batch)][str(rep)]["edge_index"][:]
-                out_dict[lab].append(np.vstack(edges).T)
-                # print(np.vstack(edges).shape)
+        for seq in list(rawh5[lab].keys())[:10]:
+            seq_list = []
+            for tree in list(rawh5[lab][str(seq)].keys())[:5]:
+                edges = rawh5[lab][str(seq)][str(tree)]["edge_index"][:]
+                # print(edges.shape)
+                seq_list.append(np.vstack(edges).T)
+            out_dict[lab].append(seq_list)
+            # print(np.vstack(edges).shape)
     return out_dict
 
 
@@ -50,22 +53,22 @@ def convert_graphs(raw_dict, VEC_DIMS):
     embedding_dict = {}
     for key, vals in raw_dict.items():
         embedding_dict[key] = []
-        for arr in vals:
-            print(arr.shape)
-            _g = nx.from_edgelist(arr)
-            """
-            Lots of hyperparams to walk through, 
-            could do grid search or smarter learning through 
-            iterative training of resulting model that feeds back into this.
-            Good chance for meta-learning?
-            """
-            n2v = Node2Vec(_g, dimensions=VEC_DIMS, workers=1)
-            model = n2v.fit()  # More hyperparams here
-            embedding_dict[key].append(
-                HadamardEmbedder(keyed_vectors=model.wv).as_keyed_vectors()
-            )
-        print(embedding_dict[key]["0"])
-        embedding_dict[key] = np.stack(embedding_dict[key])
+        for ts in vals:
+            ts_list = []
+            for tree in ts:
+                _g = nx.from_edgelist(tree)
+                """
+                Lots of hyperparams to walk through, 
+                could do grid search or smarter learning through 
+                iterative training of resulting model that feeds back into this.
+                Good chance for meta-learning?
+                """
+                n2v = Node2Vec(_g, dimensions=VEC_DIMS, workers=4)
+                model = n2v.fit()  # More hyperparams here
+                ts_list.append(
+                    np.array([model.wv[_k] for _k in model.wv.vocab])
+                )  # Extract embeddings into array
+            embedding_dict[key].append(ts_list)
 
     return embedding_dict
 
