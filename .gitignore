@@ -1,4 +1,6 @@
 *hdf5
 *h5
 *.npz
-
+*out
+*err
+.vscode/settings.json
