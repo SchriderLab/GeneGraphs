@@ -66,7 +66,8 @@ def define_params(fixed_params=None):
         # priors['tm'] = (0, 1) # comment out for test
         # tm = selectVal(priors['tm'][0], priors['tm'][1]) * td # comment out for test
         priors['tm'] = 1 # temporarily change to priors['tm'] = (0, 1)
-        tm = td # temporarily changed from tm = selectVal(priors['tm'][0], priors['tm'][1]) * td
+        # tm = td # temporarily changed from tm = selectVal(priors['tm'][0], priors['tm'][1]) * td
+        tm = 0 # changed from above
 
     if fixed_params and fixed_params['tm2']:
         tm2 = fixed_params['tm2']

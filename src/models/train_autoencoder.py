@@ -183,7 +183,7 @@ def validation(model, i, validation_generator, criterion, args, device, losses):
                 valid_disc_loss = model.discriminator_loss(z)
             loss = criterion(z, batch.edge_index, batch.batch)
 
-            if args.variational:
+            if args.is_variational:
                 loss = loss + (1 / batch.num_nodes) * model.kl_loss()
 
             validation_losses.append(loss.item())
