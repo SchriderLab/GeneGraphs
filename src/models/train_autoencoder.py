@@ -191,7 +191,7 @@ def validation(model, i, validation_generator, criterion, args, device, losses):
                 validation_disc_losses.append(valid_disc_loss.item())
 
     validation_generator.on_epoch_end()
-    if args.model_type == 'adversarial':
+    if args.is_adversarial:
         logging.info('root: Epoch: {}/{}, validation loss: {:.4f}, discriminator loss: {:.4f}'.format(i + 1,
                                                                       args.n_epochs, np.mean(validation_losses), np.mean(valid_disc_loss)))
     else:
