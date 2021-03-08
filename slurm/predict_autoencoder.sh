@@ -28,7 +28,7 @@ SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_pro
 IFILE=$1
 ODIR=$2
 MODEL=$3
-DEMOGRAPHIC_MODEL=$4
+DEMOGRAPHIC_MODEL="$4"
 
 mkdir -p ${ODIR}
 
