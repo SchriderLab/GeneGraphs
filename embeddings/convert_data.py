@@ -6,71 +6,68 @@ import h5py
 import numpy as np
 import networkx as nx
 from node2vec import Node2Vec
-from node2vec.edges import HadamardEmbedder
-from tensorflow import keras
+import sys
+import os
+from tqdm import tqdm
 
 
-def load_data(h5file):
+def iterate_trees(h5file, demo, VEC_DIMS):
     """
     Loads in HDF5 file of tree sequence data and returns a dict. 
 
     Args:
         h5file (str, optional): HDF5 file containing tree sequence data. Defaults to "/overflow/dschridelab/10e4_test_infer_FINAL.hdf5".
+        demo (str): Key from the HDF5 file of which demography model to process.
+        VEC_DIMS (int): Number of dimensions of Node2Vec output embeddings. Tuneable.
 
     Returns:
         dict: Condensed format of data with keys=class labels and values=list of edge list arrays.
     """
-    rawh5 = h5py.File(h5file)
-    labs = list(rawh5.keys())
-    out_dict = {}
+    rawh5 = h5py.File(h5file, "r")
+    outname = os.path.join(
+        os.getcwd(), h5file.split("/")[-1].split(".")[0] + f"_{demo}.hdf5"
+    )
+    outh5 = h5py.File(outname, "a")
 
-    for lab in labs:
-        # print(lab)
-        out_dict[lab] = []
-        for seq in list(rawh5[lab].keys())[:10]:
-            seq_list = []
-            for tree in list(rawh5[lab][str(seq)].keys())[:5]:
-                edges = rawh5[lab][str(seq)][str(tree)]["edge_index"][:]
-                # print(edges.shape)
-                seq_list.append(np.vstack(edges).T)
-            out_dict[lab].append(seq_list)
-            # print(np.vstack(edges).shape)
-    return out_dict
+    for seq in tqdm(list(rawh5[demo].keys()), desc="Embedding trees..."):
+        for tree in list(rawh5[demo][str(seq)].keys()):
+            edges = np.vstack(rawh5[demo][str(seq)][str(tree)]["edge_index"][:]).T
+            attr = rawh5[demo][str(seq)][str(tree)]["x"][:]
+            embedding = convert_graph(edges, VEC_DIMS)
+            # rawh5[demo][str(seq)][str(tree)]["embedding"] = embedding
+            outh5.create_dataset(
+                f"{demo}/{seq}/{tree}/embedding", data=embedding, compression="lzf",
+            )
+            outh5.create_dataset(
+                f"{demo}/{seq}/{tree}/attr", data=attr, compression="lzf",
+            )
+    outh5.close()
+    rawh5.close()
 
 
-def convert_graphs(raw_dict, VEC_DIMS):
+def convert_graph(edges, VEC_DIMS):
     """
     Converts edgelists to networkx graphs and then fits node2vec model on them.
     Saves embeddings to dictionary of arrays.
 
     Args:
-        raw_dict (dict): Dictionary of raw data, keys are labels, vals are lists of edge arrays.
+        edges (np.ndarray): Edgelist single tree in a tree sequence to be embedded.
         VEC_DIMS (int): Number of dimensions of Node2Vec output embeddings. Tuneable.
 
     Returns:
-        dict: Dictionary of output embeddings, keys are labels, vals are Node2Vec embeddings in array form.
-    """
-    embedding_dict = {}
-    for key, vals in raw_dict.items():
-        embedding_dict[key] = []
-        for ts in vals:
-            ts_list = []
-            for tree in ts:
-                _g = nx.from_edgelist(tree)
-                """
-                Lots of hyperparams to walk through, 
-                could do grid search or smarter learning through 
-                iterative training of resulting model that feeds back into this.
-                Good chance for meta-learning?
-                """
-                n2v = Node2Vec(_g, dimensions=VEC_DIMS, workers=4)
-                model = n2v.fit()  # More hyperparams here
-                ts_list.append(
-                    np.array([model.wv[_k] for _k in model.wv.vocab])
-                )  # Extract embeddings into array
-            embedding_dict[key].append(ts_list)
+        np.ndarray: Embedded tree with dimensions nodes x embedded_dim
 
-    return embedding_dict
+    Lots of hyperparams to walk through, 
+    could do grid search or smarter learning through 
+    iterative training of resulting model that feeds back into this.
+    Good chance for meta-learning?
+    """
+    _g = nx.from_edgelist(edges)
+    n2v = Node2Vec(_g, dimensions=VEC_DIMS, workers=4)
+    model = n2v.fit()  # More hyperparams here
+    emb_vec = np.array([model.wv[_k] for _k in model.wv.vocab])
+
+    return emb_vec
 
 
 def main():
@@ -80,16 +77,11 @@ def main():
     3. Computes graph embeddings for each graph
     4. Saves NPZ of graph embeddings for each sample.
 
-    TODO: Check if these edgelists should be sequences or just individual samps.
     """
     VEC_DIMS = 128
+    demo = sys.argv[1]
     h5file = "/overflow/dschridelab/10e4_test_infer_FINAL.hdf5"
-    outfile = h5file.split(".")[0].split("/")[-1] + ".npz"
-
-    data_dict = load_data(h5file)
-    embeddings_dict = convert_graphs(data_dict, VEC_DIMS)
-
-    np.savez(outfile, **embeddings_dict)
+    iterate_trees(h5file, demo, VEC_DIMS)
 
 
 if __name__ == "__main__":
