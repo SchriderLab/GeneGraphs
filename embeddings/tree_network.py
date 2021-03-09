@@ -161,8 +161,17 @@ def main():
     for epoch in range(40):
         model.train()
 
-        train_losses = []
-        val_losses = []
+        train_acc = []
+        val_acc = []
+
+        train_loss = []
+        val_loss = []
+
+        train_total = 0
+        val_total = 0
+
+        train_correct = 0
+        val_correct = 0
 
         for j, k in zip(range(len(train_batch_inds)), range(len(val_batch_inds))):
             tr_batch = torch.from_numpy(
@@ -183,11 +192,25 @@ def main():
             output_train = model(tr_batch.float())
             output_val = model(val_batch.float())
 
+            # Training acc
+            scores, predictions = torch.max(output_train.data, 1)
+            train_total += tr_y.size(0)
+            train_correct += int(sum(predictions == tr_y))  # labels.size(0) returns int
+            acc = round((train_correct / train_total) / 100, 2)
+            train_acc.append(acc)
+
+            # Val acc
+            scores, predictions = torch.max(output_val.data, 1)
+            val_total += tr_y.size(0)
+            val_correct += int(sum(predictions == tr_y))  # labels.size(0) returns int
+            acc = round((val_correct / val_total) / 100, 2)
+            val_acc.append(acc)
+
             # computing the training and validation loss
             loss_train = criterion(output_train, tr_y)
             loss_val = criterion(output_val, val_y)
-            train_losses.append(loss_train)
-            val_losses.append(loss_val)
+            train_loss.append(loss_train)
+            val_loss.append(loss_val)
 
             # computing the updated weights of all the model parameters
             loss_train.backward()
@@ -195,7 +218,22 @@ def main():
 
         if epoch % 2 == 0:
             # printing the validation loss
-            print("Epoch : ", epoch + 1, "\t", "loss :", loss_val)
+            print(
+                "Epoch : ",
+                epoch + 1,
+                "\t",
+                "train loss :",
+                train_loss[-1],
+                "\t",
+                "train acc:",
+                train_acc[-1],
+                "\t",
+                "val loss :",
+                val_loss[-1],
+                "\t",
+                "val acc:",
+                val_acc[-1],
+            )
 
     print("Finished Training")
     PATH = "./graph_vec.pth"
