@@ -240,11 +240,16 @@ def main():
     torch.save(model.state_dict(), PATH)
 
     # plotting the training and validation loss
-    plt.plot(train_losses, label="Training loss")
-    plt.plot(val_losses, label="Validation loss")
+    plt.plot(train_loss, label="Training loss")
+    plt.plot(val_loss, label="Validation loss")
     plt.legend()
-    plt.savefig("model_training.png")
+    plt.savefig("model_losses.png")
 
+    # plotting the training and validation acc
+    plt.plot(train_acc, label="Training acc")
+    plt.plot(val_acc, label="Validation acc")
+    plt.legend()
+    plt.savefig("model_acc.png")
     with torch.no_grad():
         test_out = model(torch.from_numpy(np.stack(X_test)).float().to(device)).float()
 
