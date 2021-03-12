@@ -11,7 +11,7 @@ import torch.optim as optim
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import _LRScheduler
-
+from tqdm import tqdm
 import plot_utils as pu
 
 
@@ -42,7 +42,7 @@ class LSTMClassifier(nn.Module):
     """Very simple implementation of LSTM-based time-series classifier.
     https://www.kaggle.com/purplejester/a-simple-lstm-based-time-series-classifier"""
 
-    def __init__(self, input_dim=128, hidden_dim=256, layer_dim=3, output_dim=10):
+    def __init__(self, input_dim=129, hidden_dim=256, layer_dim=3, output_dim=10):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
@@ -93,7 +93,7 @@ class CNNClassifier(nn.Module):
         self.drop_out = nn.Dropout()
 
         self.fcblock = nn.Sequential(
-            nn.Linear(96, 1000), 
+            nn.Linear(768, 1000), 
             nn.ReLU(), 
             nn.Linear(1000, 10))
         # fmt: on
@@ -117,42 +117,25 @@ class CNNClassifier(nn.Module):
         return output
 
 
-def load_data():
-    seqfiles = glob("test/*csv")
+def load_data(top_seqdir):
+    seqdirs = glob(top_seqdir + "/*")
 
-    seqs = []
+    samps = []
     labs = []
-    seq_sizes = []
+    lab_dict = {}
+    for i in range(len(seqdirs)):
+        lab_dict[seqdirs[i].split("/")[-1]] = i
+        for j in list(glob(os.path.join(seqdirs[i], "*.csv"))):
+            samps.append(j)
+            labs.append(i)
 
-    for f in seqfiles:
-
-        labs.append(int(f.split("/")[-1].split(".")[0].split(" ")[0]))
-
-        rawdata = np.genfromtxt(f, delimiter=",")
-
-        # Transpose to get into channels (embedding dims) x series (trees)
-        seqs.append(rawdata.T)
-        seq_sizes.append(rawdata.shape[0])
-
-    # Need to pad up to biggest number of trees for convolution
-    biggest_seq = np.max(seq_sizes)
-
-    padded_seqs = []
-    for seq in seqs:
-        if seq.shape[1] < biggest_seq:
-            _pad = np.zeros((seq.shape[0], biggest_seq))
-            _pad[:, : seq.shape[1]] = seq
-            padded_seqs.append(torch.from_numpy(_pad))
-        else:
-            padded_seqs.append(torch.from_numpy(seq))
-
-    # print(padded_seqs, sorted(labs))
-    return padded_seqs, labs
+    return lab_dict, samps, labs
 
 
-def split_data(treeseqs, labs):
+def split_data(samps, labs):
+
     X_train, X_val, y_train, y_val = train_test_split(
-        treeseqs, labs, stratify=labs, test_size=0.3
+        samps, labs, stratify=labs, test_size=0.3
     )
     X_val, X_test, y_val, y_test = train_test_split(
         X_val, y_val, stratify=y_val, test_size=0.5
@@ -168,6 +151,161 @@ def split_data(treeseqs, labs):
     }
 
     return data_dict
+
+
+def get_batch_inds(data_dict):
+    train_batch_inds = range(
+        0, len(data_dict["X_train"]), int(np.floor(len(data_dict["X_train"]) / 20))
+    )[:-1]
+
+    val_batch_inds = list(
+        range(0, len(data_dict["X_val"]), int(np.floor(len(data_dict["X_val"]) / 20)))[
+            :-1
+        ]
+    )
+
+    return train_batch_inds, val_batch_inds
+
+
+def pad_nparr(arr, pad_size):
+    if arr.shape[1] < pad_size:
+        _pad = np.zeros((arr.shape[0], pad_size))
+        _pad[:, : arr.shape[1]] = arr
+        return _pad
+    else:
+        return arr
+
+
+def train_model(
+    epoch,
+    model,
+    PADDING,
+    data_dict,
+    train_batch_inds,
+    val_batch_inds,
+    criterion,
+    optimizer,
+    device,
+):
+    # TODO Add some sort of shuffle to the file/lab generation
+    model.train()
+
+    train_acc = []
+    val_acc = []
+
+    train_loss = []
+    val_loss = []
+
+    train_total = 0
+    val_total = 0
+
+    train_correct = 0
+    val_correct = 0
+
+    # print(np.genfromtxt(data_dict["X_train"][0], skip_header=1, delimiter=",")[:, 1:].T)
+
+    for i in tqdm(range(len(train_batch_inds) - 1), desc="Training minibatches"):
+        tr_X_list = []
+        for j in data_dict["X_train"][train_batch_inds[i] : train_batch_inds[i + 1]]:
+            _arr = np.loadtxt(j, skiprows=1, delimiter=",", ndmin=2)
+            _arr = np.delete(_arr, 0, axis=1)
+            tr_X_list.append(pad_nparr(_arr.T, PADDING))
+
+        tr_X = torch.from_numpy(np.stack(tr_X_list)).to(device)
+
+        tr_y_list = []
+        for j in data_dict["y_train"][train_batch_inds[i] : train_batch_inds[i + 1]]:
+            tr_y_list.append(j)
+
+        tr_y = torch.from_numpy(np.stack(tr_y_list)).to(device)
+
+        output_train = model(tr_X.float())
+
+        # Training acc
+        _scores, predictions = torch.max(output_train.data, 1)
+        train_total += tr_y.size(0)
+        train_correct += int(sum(predictions == tr_y))  # labels.size(0) returns int
+        acc = round((train_correct / train_total) / 100, 2)
+        train_acc.append(acc)
+
+        loss_train = criterion(output_train, tr_y)
+        train_loss.append(loss_train)
+
+        # computing the updated weights of all the model parameters
+        loss_train.backward()
+        optimizer.step()
+
+    for i in tqdm(range(len(val_batch_inds) - 1), desc="Validation minibatches"):
+        val_X_list = []
+        for j in data_dict["X_val"][val_batch_inds[i] : val_batch_inds[i + 1]]:
+            _arr = np.loadtxt(j, skiprows=1, delimiter=",", ndmin=2)
+            _arr = np.delete(_arr, 0, axis=1)
+            val_X_list.append(pad_nparr(_arr.T, PADDING))
+
+        val_X = torch.from_numpy(np.stack(val_X_list)).to(device)
+
+        val_y_list = []
+        for j in data_dict["y_val"][val_batch_inds[i] : val_batch_inds[i + 1]]:
+            val_y_list.append(j)
+
+        val_y = torch.from_numpy(np.stack(val_y_list)).to(device)
+
+        output_val = model(val_X.float())
+
+        # Val acc
+        _scores, predictions = torch.max(output_val.data, 1)
+        val_total += val_y.size(0)
+        val_correct += int(sum(predictions == val_y))  # labels.size(0) returns int
+        acc = round((val_correct / val_total) / 100, 2)
+        val_acc.append(acc)
+
+        # computing the training and validation loss
+        loss_val = criterion(output_val, val_y)
+        val_loss.append(loss_val)
+
+    if epoch % 2 == 0:
+        # printing the validation loss
+        print(
+            "Epoch : ",
+            epoch + 1,
+            "\t",
+            "train loss :",
+            train_loss[-1],
+            "\t",
+            "train acc:",
+            train_acc[-1],
+            "\t",
+            "val loss :",
+            val_loss[-1],
+            "\t",
+            "val acc:",
+            val_acc[-1],
+        )
+
+
+def plot_training(train_loss, val_loss, train_acc, val_acc):
+    # plotting the training and validation loss
+    plt.plot(train_loss, label="Training loss")
+    plt.plot(val_loss, label="Validation loss")
+    plt.legend()
+    plt.savefig("model_losses.png")
+
+    # plotting the training and validation acc
+    plt.plot(train_acc, label="Training acc")
+    plt.plot(val_acc, label="Validation acc")
+    plt.legend()
+    plt.savefig("model_acc.png")
+
+
+def test_model(model, data_dict, modname, device):
+    with torch.no_grad():
+        test_out = model(
+            torch.from_numpy(np.stack(data_dict["X_test"])).float().to(device)
+        ).float()
+
+    probs = list(torch.exp(test_out).cpu().numpy())
+
+    evaluate_model(probs, data_dict["y_test"], modname)
 
 
 def evaluate_model(pred_probs, trues, modname):
@@ -201,139 +339,10 @@ def evaluate_model(pred_probs, trues, modname):
         os.path.join("."),  # , "images"),
         conf_mat,
         lablist,
-        title=f"{modname}_Graph_Embedding_1DCNN",
+        title=f"{modname}_Graph_Embedding",
         normalize=True,
     )
     pu.print_classification_report(trues, predictions)
-
-
-def train_model(
-    epoch,
-    model,
-    data_dict,
-    train_batch_inds,
-    val_batch_inds,
-    criterion,
-    optimizer,
-    device,
-):
-    model.train()
-
-    train_acc = []
-    val_acc = []
-
-    train_loss = []
-    val_loss = []
-
-    train_total = 0
-    val_total = 0
-
-    train_correct = 0
-    val_correct = 0
-
-    for j, k in zip(range(len(train_batch_inds)), range(len(val_batch_inds))):
-        tr_batch = torch.from_numpy(
-            np.stack(
-                data_dict["X_train"][train_batch_inds[j] : train_batch_inds[j] + 1]
-            )
-        ).to(device)
-        tr_y = torch.from_numpy(
-            np.stack(
-                data_dict["y_train"][train_batch_inds[j] : train_batch_inds[j] + 1]
-            )
-        ).to(device)
-
-        val_batch = torch.from_numpy(
-            np.stack(data_dict["X_val"][val_batch_inds[k] : val_batch_inds[k] + 1])
-        ).to(device)
-        val_y = torch.from_numpy(
-            np.stack(data_dict["X_train"][val_batch_inds[k] : val_batch_inds[k] + 1])
-        ).to(device)
-
-        # prediction for training set
-        output_train = model(tr_batch.float())
-        output_val = model(val_batch.float())
-
-        # Training acc
-        _scores, predictions = torch.max(output_train.data, 1)
-        train_total += tr_y.size(0)
-        train_correct += int(sum(predictions == tr_y))  # labels.size(0) returns int
-        acc = round((train_correct / train_total) / 100, 2)
-        train_acc.append(acc)
-
-        # Val acc
-        _scores, predictions = torch.max(output_val.data, 1)
-        val_total += tr_y.size(0)
-        val_correct += int(sum(predictions == tr_y))  # labels.size(0) returns int
-        acc = round((val_correct / val_total) / 100, 2)
-        val_acc.append(acc)
-
-        # computing the training and validation loss
-        loss_train = criterion(output_train, tr_y)
-        loss_val = criterion(output_val, val_y)
-        train_loss.append(loss_train)
-        val_loss.append(loss_val)
-
-        # computing the updated weights of all the model parameters
-        loss_train.backward()
-        optimizer.step()
-
-    if epoch % 2 == 0:
-        # printing the validation loss
-        print(
-            "Epoch : ",
-            epoch + 1,
-            "\t",
-            "train loss :",
-            train_loss[-1],
-            "\t",
-            "train acc:",
-            train_acc[-1],
-            "\t",
-            "val loss :",
-            val_loss[-1],
-            "\t",
-            "val acc:",
-            val_acc[-1],
-        )
-
-
-def get_batch_inds(data_dict):
-    train_batch_inds = list(
-        range(
-            0, len(data_dict["X_train"]), int(np.floor(len(data_dict["X_train"]) / 1))
-        )
-    )
-    val_batch_inds = list(
-        range(0, len(data_dict["X_val"]), int(np.floor(len(data_dict["X_val"]) / 1)))
-    )
-
-    return train_batch_inds, val_batch_inds
-
-
-def test_model(model, data_dict, modname, device):
-    with torch.no_grad():
-        test_out = model(
-            torch.from_numpy(np.stack(data_dict["X_test"])).float().to(device)
-        ).float()
-
-    probs = list(torch.exp(test_out).cpu().numpy())
-
-    evaluate_model(probs, data_dict["y_test"], modname)
-
-
-def plot_training(train_loss, val_loss, train_acc, val_acc):
-    # plotting the training and validation loss
-    plt.plot(train_loss, label="Training loss")
-    plt.plot(val_loss, label="Validation loss")
-    plt.legend()
-    plt.savefig("model_losses.png")
-
-    # plotting the training and validation acc
-    plt.plot(train_acc, label="Training acc")
-    plt.plot(val_acc, label="Validation acc")
-    plt.legend()
-    plt.savefig("model_acc.png")
 
 
 def main():
@@ -349,24 +358,27 @@ def main():
         print("No model type given, opts are cnn or lstm\n")
         sys.exit(1)
 
-    criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    PADDING = 100
 
-    # print(model)
-
-    seqs, labs = load_data()
-    data_dict = split_data(seqs, labs)
+    lab_dict, samps, labs = load_data(
+        "/overflow/dschridelab/users/wwbooker/GeneGraphs/embeddings/graph2vec/all_models_1/"
+    )
+    data_dict = split_data(samps, labs)
 
     train_batch_inds, val_batch_inds = get_batch_inds(data_dict)
 
-    sched = CyclicLR(
-        optimizer, cosine(t_max=len(train_batch_inds) * 2, eta_min=1e-3 / 100)
-    )
+    # sched = CyclicLR(
+    #    optimizer, cosine(t_max=len(train_batch_inds) * 2, eta_min=1e-3 / 100)
+    # )
 
-    for epoch in range(40):
+    criterion = nn.CrossEntropyLoss().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+    for epoch in tqdm(range(40), desc="Epochs"):
         train_model(
             epoch,
             model,
+            PADDING,
             data_dict,
             train_batch_inds,
             val_batch_inds,
