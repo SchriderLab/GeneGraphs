@@ -82,21 +82,31 @@ class CNNClassifier(nn.Module):
         #move_size = (3, num_nodes, embedding_dim) #We only want to convolve over the spatial dimension? Right? Wrong? Maybe not, would sorting work?
 
         self.conv1 = nn.Sequential(
-            nn.Conv1d(128, 64, kernel_size=3, stride=2, padding=0),
+            nn.Conv1d(64, 32, kernel_size=3, stride=2, padding=0),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
             nn.MaxPool1d(kernel_size=3, stride=2, padding=0))
 
         self.conv2 = nn.Sequential(
-            nn.Conv1d(64, 32, kernel_size=1, stride=1, padding=0),
+            nn.Conv1d(16, 4, kernel_size=1, stride=1, padding=0),
             nn.ReLU(),
+            nn.Dropout(p=0.2),
             nn.MaxPool1d(kernel_size=1, stride=1, padding=0))
 
-        self.drop_out = nn.Dropout()
-
         self.fcblock = nn.Sequential(
-            nn.Linear(768, 1000), 
+            nn.Linear(96, 256), 
             nn.ReLU(), 
-            nn.Linear(1000, 10))
+            nn.Dropout(p=0.2),
+
+            nn.Linear(256, 128),
+            nn.ReLU(), 
+            nn.Dropout(p=0.2),
+
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(p=0.2),
+
+            nn.Linear(64, 10))
         # fmt: on
 
     def forward(self, tree_seq_tensor):
@@ -109,13 +119,10 @@ class CNNClassifier(nn.Module):
         """
         x = self.conv1(tree_seq_tensor)
         x = self.conv2(x)
-        x = self.drop_out(x)
         x = torch.flatten(x, 1)
         x = self.fcblock(x)
 
-        output = F.log_softmax(x, dim=1)
-
-        return output
+        return x
 
 
 def load_data(top_seqdir):
@@ -126,7 +133,7 @@ def load_data(top_seqdir):
     lab_dict = {}
     for i in range(len(seqdirs)):
         lab_dict[seqdirs[i].split("/")[-1]] = i
-        for j in list(glob(os.path.join(seqdirs[i], "*.csv"))):
+        for j in list(glob(os.path.join(seqdirs[i], "*_dim64.csv"))):
             samps.append(j)
             labs.append(i)
 
@@ -154,24 +161,6 @@ def split_data(samps, labs):
     return data_dict
 
 
-def get_batch_inds(data_dict, NUM_BATCHES):
-    train_batch_inds = range(
-        0,
-        len(data_dict["X_train"]),
-        int(np.floor(len(data_dict["X_train"]) / NUM_BATCHES)),
-    )[:-1]
-
-    val_batch_inds = list(
-        range(
-            0,
-            len(data_dict["X_val"]),
-            int(np.floor(len(data_dict["X_val"]) / NUM_BATCHES)),
-        )[:-1]
-    )
-
-    return train_batch_inds, val_batch_inds
-
-
 def pad_nparr(arr, pad_size):
     if arr.shape[1] < pad_size:
         _pad = np.zeros((arr.shape[0], pad_size))
@@ -181,9 +170,16 @@ def pad_nparr(arr, pad_size):
         return arr
 
 
-def accuracy(true, pred):
-    acc = (true == pred).float().detach().numpy()
-    return float(100 * acc.sum() / len(acc))
+def multi_acc(y_pred, y_test):
+    y_pred_softmax = torch.log_softmax(y_pred, dim=1)
+    _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
+
+    correct_pred = (y_pred_tags == y_test).float()
+    acc = correct_pred.sum() / len(correct_pred)
+
+    acc = torch.round(acc * 100)
+
+    return acc
 
 
 def train_model(
@@ -195,25 +191,16 @@ def train_model(
     criterion,
     optimizer,
     device,
-    patience,
 ):
-    # TODO Add some sort of shuffle to the file/lab generation
-    model.train()
+    train_acc = 0.0
+    val_acc = 0.0
 
-    train_labs = []
-    train_preds = []
-
-    val_labs = []
-    val_preds = []
-
-    train_acc = []
-    val_acc = []
-
-    train_loss = []
-    val_loss = []
+    train_loss = 0.0
+    val_loss = 0.0
 
     # Training
     permutation = torch.randperm(len(data_dict["X_train"]))
+    model.train()
 
     for i in tqdm(
         range(0, len(data_dict["X_train"]), batch_size),
@@ -238,56 +225,53 @@ def train_model(
 
         output_train = model(tr_X.float())
 
-        # Training acc
-        _scores, predictions = torch.max(output_train.data, 1)
-
         loss_train = criterion(output_train, tr_y)
-        train_loss.append(torch.mean(loss_train))
+        train_loss += loss_train.item()
 
-        train_labs.append(tr_y.cpu())
-        train_preds.append(predictions.cpu())
+        acc = multi_acc(output_train, tr_y)
+        train_acc += acc.item()
 
         # computing the updated weights of all the model parameters
         loss_train.backward()
         optimizer.step()
 
-    acc = accuracy(torch.cat(train_labs), torch.cat(train_preds))
-    train_acc.append(acc)
+    with torch.no_grad():
+        # Validation
+        permutation = torch.randperm(len(data_dict["X_val"]))
+        model.eval()
+        
+        for i in tqdm(
+            range(0, len(data_dict["X_val"]), batch_size),
+            desc="Validation minibatches",
+        ):
+            val_inds = permutation[i : i + batch_size]
+            val_X_list = []
+            for j in [data_dict["X_val"][k] for k in list(val_inds)]:
+                _arr = np.loadtxt(j, skiprows=1, delimiter=",", ndmin=2)
+                _arr = np.delete(_arr, 0, axis=1)
+                val_X_list.append(pad_nparr(_arr.T, PADDING))
 
-    # Validation
-    permutation = torch.randperm(len(data_dict["X_val"]))
+            val_X = torch.from_numpy(np.stack(val_X_list)).to(device)
 
-    for i in tqdm(
-        range(0, len(data_dict["X_val"]), batch_size),
-        desc="Validation minibatches",
-    ):
-        val_inds = permutation[i : i + batch_size]
-        val_X_list = []
-        for j in [data_dict["X_val"][k] for k in list(val_inds)]:
-            _arr = np.loadtxt(j, skiprows=1, delimiter=",", ndmin=2)
-            _arr = np.delete(_arr, 0, axis=1)
-            val_X_list.append(pad_nparr(_arr.T, PADDING))
+            val_y_list = []
+            for j in [data_dict["y_val"][k] for k in list(val_inds)]:
+                val_y_list.append(j)
 
-        val_X = torch.from_numpy(np.stack(val_X_list)).to(device)
+            val_y = torch.from_numpy(np.stack(val_y_list)).to(device)
 
-        val_y_list = []
-        for j in [data_dict["y_val"][k] for k in list(val_inds)]:
-            val_y_list.append(j)
+            output_val = model(val_X.float())
 
-        val_y = torch.from_numpy(np.stack(val_y_list)).to(device)
+            loss_val = criterion(output_val, val_y)
+            val_loss += loss_val.item()
 
-        output_val = model(val_X.float())
-        _scores, predictions = torch.max(output_val.data, 1)
+            acc = multi_acc(output_val, val_y)
+            val_acc += acc.item()
 
-        val_labs.append(val_y.cpu())
-        val_preds.append(predictions.cpu())
+            # computing the training and validation loss
+            loss_val = criterion(output_val, val_y)
+            val_loss.append(torch.mean(loss_val))
 
-        # computing the training and validation loss
-        loss_val = criterion(output_val, val_y)
-        val_loss.append(torch.mean(loss_val))
-
-    acc = accuracy(torch.cat(val_labs), torch.cat(val_preds))
-    val_acc.append(acc)
+    # Average the losses/acc over entire epoch
 
     if epoch % 1 == 0:
         # printing the validation loss
@@ -295,28 +279,30 @@ def train_model(
             "\n",
             "Epoch : ",
             epoch + 1,
-            "\t",
+            " |\t",
             "train loss :",
-            "{:10.2f}".format(train_loss[-1].item()),
-            "\t",
+            "{:10.2f}".format(train_loss / len(data_dict["X_train"])),
+            " |\t",
             "train acc:",
-            "{:10.2f}".format(train_acc[-1]),
-            "\t",
+            "{:10.2f}".format(train_acc / len(data_dict["X_train"])),
+            " |\t",
             "val loss :",
-            "{:10.2f}".format(val_loss[-1].item()),
-            "\t",
+            "{:10.2f}".format(val_loss / len(data_dict["X_val"])),
+            " |\t",
             "val acc:",
-            "{:10.2f}".format(val_acc[-1]),
+            "{:10.2f}".format(val_acc / len(data_dict["X_val"])),
             "\n",
         )
 
-    if val_acc.index(max(val_acc)) <= (len(val_acc) - patience):
-        print(
-            "\nValidation accuracy not increasing within patience window, stopping.\n"
-        )
-        return True
-    else:
-        return False
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+    return (
+        train_acc / len(data_dict["X_train"]),
+        train_loss / len(data_dict["X_train"]),
+        val_acc / len(data_dict["X_val"]),
+        val_loss / len(data_dict["X_val"]),
+    )
 
 
 def plot_training(train_loss, val_loss, train_acc, val_acc):
@@ -324,17 +310,17 @@ def plot_training(train_loss, val_loss, train_acc, val_acc):
     plt.plot(train_loss, label="Training loss")
     plt.plot(val_loss, label="Validation loss")
     plt.legend()
-    plt.savefig("model_losses.png")
+    plt.savefig("64_model_losses.png")
 
     # plotting the training and validation acc
     plt.plot(train_acc, label="Training acc")
     plt.plot(val_acc, label="Validation acc")
     plt.legend()
-    plt.savefig("model_acc.png")
+    plt.savefig("64_model_acc.png")
 
 
 def test_model(model, PADDING, data_dict, modname, device):
-
+    model.eval()
     test_X_list = []
     for j in data_dict["X_test"]:
         _arr = np.loadtxt(j, skiprows=1, delimiter=",", ndmin=2)
@@ -402,27 +388,25 @@ def main():
 
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
+
     print(f"Using {torch.cuda.device_count()} GPUs.\n")
 
     PADDING = 100
-    NUM_BATCHES = 40
+    NUM_BATCHES = 20
+    patience = 5
 
     lab_dict, samps, labs = load_data(
         "/overflow/dschridelab/users/wwbooker/GeneGraphs/embeddings/graph2vec/all_models_1/"
     )
+
     data_dict = split_data(samps, labs)
-
-    train_batch_inds, val_batch_inds = get_batch_inds(data_dict, NUM_BATCHES)
-
-    # sched = CyclicLR(
-    #    optimizer, cosine(t_max=len(train_batch_inds) * 2, eta_min=1e-3 / 100)
-    # )
 
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
+    training_stats = {"train_acc": [], "train_loss": [], "val_acc": [], "val_loss": []}
     for epoch in tqdm(range(40), desc="Epochs"):
-        earlystop = train_model(
+        epoch_stats = train_model(
             epoch,
             model,
             24,
@@ -431,16 +415,31 @@ def main():
             criterion,
             optimizer,
             device,
-            5,
         )
 
-        if earlystop:
+        for stat, newstat in zip(list(training_stats.keys()), epoch_stats):
+            training_stats[stat].append(newstat)
+
+        if training_stats["val_acc"].index(max(training_stats["val_acc"])) <= (
+            len(training_stats["val_acc"]) - patience
+        ):
+            print(
+                "\nValidation accuracy not increasing within patience window, stopping.\n"
+            )
             break
-        else:
-            continue
+
+    try:
+        plot_training(
+            training_stats["train_loss"],
+            training_stats["val_loss"],
+            training_stats["train_acc"],
+            training_stats["val_acc"],
+        )
+    except:
+        print("Couldn't plot loss")
 
     print("Finished Training")
-    PATH = f"./{modname}_graph_vec.pth"
+    PATH = f"./{modname}_64_graph_vec.pth"
     torch.save(model.state_dict(), PATH)
 
     test_model(model, PADDING, data_dict, modname, device)

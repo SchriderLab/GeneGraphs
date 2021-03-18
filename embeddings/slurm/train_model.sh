@@ -13,4 +13,4 @@
 cd /overflow/dschridelab/projects/GeneGraphs/embeddings
 source activate compbio
 
-python tree_network.py lstm
+python tree_network.py cnn
