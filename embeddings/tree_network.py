@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from torch.optim.lr_scheduler import _LRScheduler
 from tqdm import tqdm
+
 import plot_utils as pu
 
 
@@ -42,7 +43,7 @@ class LSTMClassifier(nn.Module):
     """Very simple implementation of LSTM-based time-series classifier.
     https://www.kaggle.com/purplejester/a-simple-lstm-based-time-series-classifier"""
 
-    def __init__(self, input_dim=100, hidden_dim=128, layer_dim=1, output_dim=10):
+    def __init__(self, input_dim=100, hidden_dim=128, layer_dim=3, output_dim=2):
         super().__init__()
         self.hidden_dim = hidden_dim
         self.layer_dim = layer_dim
@@ -61,7 +62,7 @@ class LSTMClassifier(nn.Module):
     def init_hidden(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
         c0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim)
-        return [t.cuda() for t in (h0, c0)]
+        return [t for t in (h0, c0)]
         # fmt: on
 
 
@@ -84,29 +85,32 @@ class CNNClassifier(nn.Module):
         self.conv1 = nn.Sequential(
             nn.Conv1d(64, 32, kernel_size=3, stride=2, padding=0),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            #nn.BatchNorm1d(64),
+            nn.Dropout(p=0.5),
             nn.MaxPool1d(kernel_size=3, stride=2, padding=0))
 
         self.conv2 = nn.Sequential(
-            nn.Conv1d(16, 4, kernel_size=1, stride=1, padding=0),
+            nn.Conv1d(32, 16, kernel_size=1, stride=1, padding=0),
             nn.ReLU(),
-            nn.Dropout(p=0.2),
+            #nn.BatchNorm1d(16),
+            nn.Dropout(p=0.5),
             nn.MaxPool1d(kernel_size=1, stride=1, padding=0))
 
         self.fcblock = nn.Sequential(
-            nn.Linear(96, 256), 
+            nn.Linear(384, 512), 
             nn.ReLU(), 
-            nn.Dropout(p=0.2),
+            nn.BatchNorm1d(512),
+            nn.Dropout(p=0.5),
 
-            nn.Linear(256, 128),
-            nn.ReLU(), 
-            nn.Dropout(p=0.2),
+            nn.Linear(512, 2))
+        # nn.ReLU(),
+        # nn.Dropout(p=0.5),
 
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Dropout(p=0.2),
+        # nn.Linear(512, 64),
+        # nn.ReLU(),
+        # nn.Dropout(p=0.5),
 
-            nn.Linear(64, 10))
+        # nn.Linear(64, 2))
         # fmt: on
 
     def forward(self, tree_seq_tensor):
@@ -133,7 +137,7 @@ def load_data(top_seqdir):
     lab_dict = {}
     for i in range(len(seqdirs)):
         lab_dict[seqdirs[i].split("/")[-1]] = i
-        for j in list(glob(os.path.join(seqdirs[i], "*_dim64.csv"))):
+        for j in list(glob(os.path.join(seqdirs[i], "*.csv"))):
             samps.append(j)
             labs.append(i)
 
@@ -170,18 +174,6 @@ def pad_nparr(arr, pad_size):
         return arr
 
 
-def multi_acc(y_pred, y_test):
-    y_pred_softmax = torch.log_softmax(y_pred, dim=1)
-    _, y_pred_tags = torch.max(y_pred_softmax, dim=1)
-
-    correct_pred = (y_pred_tags == y_test).float()
-    acc = correct_pred.sum() / len(correct_pred)
-
-    acc = torch.round(acc * 100)
-
-    return acc
-
-
 def train_model(
     epoch,
     model,
@@ -201,11 +193,8 @@ def train_model(
     # Training
     permutation = torch.randperm(len(data_dict["X_train"]))
     model.train()
-
-    for i in tqdm(
-        range(0, len(data_dict["X_train"]), batch_size),
-        desc="Training minibatches",
-    ):
+    train_steps = range(0, len(data_dict["X_train"]), batch_size)
+    for i in tqdm(train_steps, desc="Training minibatches"):
         tr_inds = permutation[i : i + batch_size]
         tr_X_list = []
         for j in [data_dict["X_train"][k] for k in list(tr_inds)]:
@@ -223,13 +212,14 @@ def train_model(
 
         optimizer.zero_grad()
 
-        output_train = model(tr_X.float())
+        output_train = torch.sigmoid(model(tr_X.float()))
+        y_pred = np.argmax(output_train.detach().cpu().numpy(), axis=1)
 
         loss_train = criterion(output_train, tr_y)
-        train_loss += loss_train.item()
+        train_loss += loss_train.detach().item()
 
-        acc = multi_acc(output_train, tr_y)
-        train_acc += acc.item()
+        acc = accuracy_score(y_pred, tr_y.detach().cpu().numpy())
+        train_acc += acc
 
         # computing the updated weights of all the model parameters
         loss_train.backward()
@@ -237,13 +227,11 @@ def train_model(
 
     with torch.no_grad():
         # Validation
+        val_steps = range(0, len(data_dict["X_val"]), batch_size)
         permutation = torch.randperm(len(data_dict["X_val"]))
         model.eval()
-        
-        for i in tqdm(
-            range(0, len(data_dict["X_val"]), batch_size),
-            desc="Validation minibatches",
-        ):
+
+        for i in tqdm(val_steps, desc="Validation minibatches"):
             val_inds = permutation[i : i + batch_size]
             val_X_list = []
             for j in [data_dict["X_val"][k] for k in list(val_inds)]:
@@ -259,17 +247,21 @@ def train_model(
 
             val_y = torch.from_numpy(np.stack(val_y_list)).to(device)
 
-            output_val = model(val_X.float())
+            output_val = torch.sigmoid(model(val_X.float()))
+
+            y_pred = np.argmax(output_val, axis=1)
 
             loss_val = criterion(output_val, val_y)
-            val_loss += loss_val.item()
+            val_loss += loss_val.detach().item()
 
-            acc = multi_acc(output_val, val_y)
-            val_acc += acc.item()
+            acc = accuracy_score(
+                y_pred.detach().cpu().numpy(), val_y.detach().cpu().numpy()
+            )
+            val_acc += acc
 
             # computing the training and validation loss
             loss_val = criterion(output_val, val_y)
-            val_loss.append(torch.mean(loss_val))
+            val_loss += torch.mean(loss_val)
 
     # Average the losses/acc over entire epoch
 
@@ -281,16 +273,16 @@ def train_model(
             epoch + 1,
             " |\t",
             "train loss :",
-            "{:10.2f}".format(train_loss / len(data_dict["X_train"])),
+            "{:10.2f}".format(train_loss / len(train_steps)),
             " |\t",
             "train acc:",
-            "{:10.2f}".format(train_acc / len(data_dict["X_train"])),
+            "{:10.2f}".format(train_acc / len(train_steps)),
             " |\t",
             "val loss :",
-            "{:10.2f}".format(val_loss / len(data_dict["X_val"])),
+            "{:10.2f}".format(val_loss / len(val_steps)),
             " |\t",
             "val acc:",
-            "{:10.2f}".format(val_acc / len(data_dict["X_val"])),
+            "{:10.2f}".format(val_acc / len(val_steps)),
             "\n",
         )
 
@@ -310,13 +302,13 @@ def plot_training(train_loss, val_loss, train_acc, val_acc):
     plt.plot(train_loss, label="Training loss")
     plt.plot(val_loss, label="Validation loss")
     plt.legend()
-    plt.savefig("64_model_losses.png")
+    # plt.savefig("64_model_losses.png")
 
     # plotting the training and validation acc
     plt.plot(train_acc, label="Training acc")
     plt.plot(val_acc, label="Validation acc")
     plt.legend()
-    plt.savefig("64_model_acc.png")
+    plt.savefig("node_10classs_model_acc.png")
 
 
 def test_model(model, PADDING, data_dict, modname, device):
@@ -331,7 +323,7 @@ def test_model(model, PADDING, data_dict, modname, device):
         test_out = model(
             torch.from_numpy(np.stack(test_X_list)).float().to(device)
         ).float()
-    probs = list(torch.exp(test_out).cpu().numpy())
+    probs = list(torch.sigmoid(test_out).cpu().numpy())
 
     evaluate_model(probs, data_dict["y_test"], modname)
 
@@ -367,7 +359,7 @@ def evaluate_model(pred_probs, trues, modname):
         os.path.join("."),  # , "images"),
         conf_mat,
         lablist,
-        title=f"{modname}_Graph_Embedding",
+        title=f"{modname}_10class_Graph_Embedding",
         normalize=True,
     )
     pu.print_classification_report(trues, predictions)
@@ -396,7 +388,7 @@ def main():
     patience = 5
 
     lab_dict, samps, labs = load_data(
-        "/overflow/dschridelab/users/wwbooker/GeneGraphs/embeddings/graph2vec/all_models_1/"
+        "/overflow/dschridelab/users/wwbooker/GeneGraphs/embeddings/graph2vec/2model_g2v_64"
     )
 
     data_dict = split_data(samps, labs)
@@ -439,7 +431,7 @@ def main():
         print("Couldn't plot loss")
 
     print("Finished Training")
-    PATH = f"./{modname}_64_graph_vec.pth"
+    PATH = f"./{modname}_2class_graph_vec.pth"
     torch.save(model.state_dict(), PATH)
 
     test_model(model, PADDING, data_dict, modname, device)
