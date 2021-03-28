@@ -11,18 +11,17 @@ Generate some graphs with msprime (Choices of demographic model to simulate are 
 ```
 python src/data/simulate_msprime.py --outdir test_out --id test --length 0.1 --model constant_2pop --replicates 100
 ```
-or:
-./make_simulations.sh {replicate count} {outdir} {real_or_simulated} {list of models to make}
-
-example:
-```
-./make_simulations.sh 10000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
-```
 
 Format the data:
 
 ```
 python3 src/data/format.py --idir test_out/ --ofile test.hdf5
+```
+
+Alternatively, you can generate and format them simultaneously with the make_simulations.sh shell.
+Example:
+```
+./make_simulations.sh 10000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
 ```
 
 Train an auto-encoder (this script doesn't yet save a model, but it is functional assuming the dependencies are installed)
