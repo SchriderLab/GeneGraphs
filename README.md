@@ -11,6 +11,13 @@ Generate some graphs with msprime (Choices of demographic model to simulate are 
 ```
 python src/data/simulate_msprime.py --outdir test_out --id test --length 0.1 --model constant_2pop --replicates 100
 ```
+or:
+./make_simulations.sh {replicate count} {outdir} {real_or_simulated} {list of models to make}
+
+example:
+```
+./make_simulations.sh 10000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
+```
 
 Format the data:
 
