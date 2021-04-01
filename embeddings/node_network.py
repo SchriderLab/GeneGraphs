@@ -16,6 +16,8 @@ from tqdm import tqdm
 
 import plot_utils as pu
 
+# https://github.com/VHRanger/nodevectors
+
 
 class LSTMClassifier(nn.Module):
     """Very simple implementation of LSTM-based time-series classifier.
@@ -108,7 +110,7 @@ class CNNClassifier(nn.Module):
 
 
 def load_data():
-    h5filelist = [
+    """h5filelist = [
         "/overflow/dschridelab/projects/GeneGraphs/embeddings/node_embeddings/10e4_test_infer_FINAL_multi_pulse_uni_BA.hdf5",
         "/overflow/dschridelab/projects/GeneGraphs/embeddings/node_embeddings/10e4_test_infer_FINAL_multi_pulse_bi.hdf5",
         "/overflow/dschridelab/projects/GeneGraphs/embeddings/node_embeddings/10e4_test_infer_FINAL_continuous_bi.hdf5",
@@ -119,6 +121,18 @@ def load_data():
         "/overflow/dschridelab/projects/GeneGraphs/embeddings/node_embeddings/10e4_test_infer_FINAL_continuous_uni_BA.hdf5",
         "/overflow/dschridelab/projects/GeneGraphs/embeddings/node_embeddings/10e4_test_infer_FINAL_single_pulse_bi.hdf5",
         "/overflow/dschridelab/projects/GeneGraphs/embeddings/node_embeddings/10e4_test_infer_FINAL_continuous_uni_AB.hdf5",
+    ]"""
+    h5filelist = [
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_multi_pulse_uni_BA.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_multi_pulse_bi.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_continuous_bi.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_constant_2pop.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_single_pulse_uni_AB.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_single_pulse_uni_BA.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_multi_pulse_uni_AB.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_continuous_uni_BA.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_single_pulse_bi.hdf5",
+        "/overflow/dschridelab/projects/GeneGraphs/embeddings/testout/hdf5files/testout_continuous_uni_AB.hdf5",
     ]
 
     samps = []
@@ -162,6 +176,9 @@ def pad_nparr(arr, pad_size):
         _pad = np.zeros((pad_size, arr.shape[1]))
         _pad[: arr.shape[0], :] = arr
         return _pad
+    elif arr.shape[0] > pad_size:
+        arr = arr[:pad_size, :]
+        return arr
     else:
         return arr
 
@@ -204,8 +221,6 @@ def train_model(
                 tree_list.append(pad_nparr(np.array(j[tree_id]["embedding"]), PADDING))
             tr_X_list.append(pad_3d_nparr(np.stack(tree_list), PADDING))
 
-        # print(tr_X_list[-1].shape)
-
         tr_X = torch.from_numpy(np.stack(tr_X_list)).to(device)
 
         # print(tr_X.shape)
@@ -216,9 +231,7 @@ def train_model(
 
         tr_y = torch.from_numpy(np.stack(tr_y_list)).to(device)
 
-        optimizer.zero_grad()
-
-        output_train = torch.softmax(model(tr_X.float()), 1)
+        output_train = torch.softmax(model.forward(tr_X.float()), 1)
         y_pred = np.argmax(output_train.detach().cpu().numpy(), axis=1)
 
         loss_train = criterion(output_train, tr_y)
@@ -228,8 +241,12 @@ def train_model(
         train_acc += acc
 
         # computing the updated weights of all the model parameters
+        optimizer.zero_grad()
         loss_train.backward()
         optimizer.step()
+
+        print("ACC:", acc)
+        print("Loss:", loss_train)
 
     with torch.no_grad():
         # Validation
@@ -259,6 +276,9 @@ def train_model(
             output_val = torch.softmax(model(val_X.float()), 1)
 
             y_pred = np.argmax(output_val, axis=1)
+
+            print(val_y_list[:5])
+            print(y_pred[:5])
 
             loss_val = criterion(output_val, val_y)
             val_loss += loss_val.detach().item()
@@ -333,7 +353,7 @@ def test_model(model, PADDING, data_dict, modname, device):
         test_out = model(
             torch.from_numpy(np.stack(test_X_list)).float().to(device)
         ).float()
-    probs = list(torch.sigmoid(test_out).cpu().numpy())
+    probs = list(torch.softmax(test_out, 1).cpu().numpy())
 
     evaluate_model(probs, data_dict["y_test"], modname)
 
@@ -395,7 +415,7 @@ def main():
 
     PADDING = 100
     NUM_BATCHES = 20
-    patience = 5
+    patience = 1
 
     lab_dict, samps, labs = load_data()
     print(set(labs))
