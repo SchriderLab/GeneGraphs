@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -p general
 #SBATCH --nodes=1
-#SBATCH --time=10-00:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mem=8G
 #SBATCH --ntasks=4
 #SBATCH -J embeddings
@@ -12,6 +12,6 @@
 
 #Replace these with default examples before release
 cd /overflow/dschridelab/projects/GeneGraphs/embeddings
-source activate compbio
+source activate treenets
 
 python convert_data.py ${1}
