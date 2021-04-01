@@ -8,11 +8,12 @@ Generate some graphs with msprime (Choices of demographic model to simulate are 
 `constant_3pop`, `single_pulse_uni_AB`, `single_pulse_uni_BA`, `single_pulse_bi`, `multi_pulse_uni_AB`, 
 `multi_pulse_uni_BA`, `multi_pulse_bi`, `continuous_uni_AB`, `continuous_uni_BA`, `continuous_bi`):
 
+You can generate them in parallel with the parallel_sims.sh shell:
 ```
-python src/data/simulate_msprime.py --outdir test_out --id test --length 0.1 --model constant_2pop --replicates 100
+./slurm/parallel_sims.sh 1000 /proj/dschridelab/output_dir real constant_2pop single_pulse_uni_AB continuous_bi
 ```
 
-Format the data:
+Then you have to format the data:
 
 ```
 python3 src/data/format.py --idir test_out/ --ofile test.hdf5
@@ -21,8 +22,9 @@ python3 src/data/format.py --idir test_out/ --ofile test.hdf5
 Alternatively, you can generate and format them simultaneously with the make_simulations.sh shell.
 Example:
 ```
-./make_simulations.sh 10000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
+./make_simulations.sh 1000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
 ```
+However, this process is not parallelized (so it is best for small data sizes)
 
 Train an auto-encoder (this script doesn't yet save a model, but it is functional assuming the dependencies are installed)
 
