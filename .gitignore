@@ -7,3 +7,8 @@
 *pyc
 test
 *pth
+*.samples*
+*.ts
+*.params
+*maxsnps*
+*/models
