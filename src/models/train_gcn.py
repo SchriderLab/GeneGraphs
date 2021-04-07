@@ -27,8 +27,8 @@ def parse_args():
     parser.add_argument("--odir", default="None")
 
     parser.add_argument("--n_epochs", default="5")
-    parser.add_argument("--lr", default="0.01")
-    parser.add_argument("--weight_decay", default="5e-4")
+    parser.add_argument("--lr", default="None") # lr is specified in configs file
+    parser.add_argument("--weight_decay", default="None")
 
     # parser.add_argument("--in_features", default = "6")
     # parser.add_argument("--out_features", default = "2")
@@ -70,7 +70,10 @@ def main():
     validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
 
     # default optimizer for now
-    optimizer = torch.optim.Adam(model.parameters(), lr=float(args.lr))
+    if args.lr != "None":
+        optimizer = torch.optim.Adam(model.parameters(), lr=float(args.lr))
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=float(config.get("learning_params", "lr")))
 
     losses = deque(maxlen=500)
     accuracies = deque(maxlen=500)

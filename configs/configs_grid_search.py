@@ -10,7 +10,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--num_classes", default="10")
-    parser.add_argument("--layer_types", default="transformer_conv gat_conv gcn_conv", nargs='+')
+    parser.add_argument("--layer_types", default=["transformer_conv", "gat_conv", "gcn_conv"], nargs='+')
     parser.add_argument("--input_size", default="6")
     parser.add_argument("--search_size", default="10", help="how many configs to generate per layer type")
     parser.add_argument("--odir", default="configs/config_grid_search_output")
@@ -19,8 +19,8 @@ def parse_args():
     if args.odir != "None":
         if not os.path.exists(args.odir):
             os.mkdir(args.odir)
-        elif len(os.listdir(args.odir)) > 0:
-            raise Exception("This output directory is not empty")
+        else:
+            os.system('rm -rf {0}'.format(os.path.join(args.odir, '*')))
 
     return args
 
@@ -37,7 +37,9 @@ def make_new_grid():
         "batch_norm": random.choice([True, False]),
         "pooling_type": random.choice(["global_max_pool", "global_add_pool", "global_mean_pool", "None"]),
         "negative_slope": random.choice([0.1, 0.2]),
-        "dropout": random.choice([0.0, 0.1, 0.2, 0.3, 0.4, 0.5])
+        "dropout": random.choice([0.0, 0.1, 0.2, 0.3, 0.4, 0.5]),
+        "lr": random.choice([5e-4, 1e-4, 5e-3, 1e-3, 1e-2]),
+        "weight_decay": random.choice([1e-6, 5e-6, 1e-5, 5e-4])
     }
 
 
@@ -61,6 +63,8 @@ def main():
                     out_channels.append(int(grid_search["big_out_channels"]*in_channels[-1]))
                 else:
                     out_channels.append(grid_search["out_channels"]*in_channels[-1])
+                if out_channels[-1] == 0:  # scrappy patch to edge case
+                    out_channels[-1] == 10
                 if i < depth - 1:
                     in_channels.append(out_channels[-1])
 
@@ -105,7 +109,11 @@ def main():
                 file.write("batch_norm = " + str(grid_search["batch_norm"]) + "\n\n")
 
                 file.write("[pooling_params]\n")
-                file.write("pooling_type = " + str(grid_search["pooling_type"]) + "\n")
+                file.write("pooling_type = " + str(grid_search["pooling_type"]) + "\n\n")
+
+                file.write("[learning_params]\n")
+                file.write("lr = " + str(grid_search["lr"]) + "\n")
+                file.write("weight_decay = " + str(grid_search["weight_decay"]) + "\n")
                 file.close()
 
 
