@@ -32,7 +32,7 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
     return label
 
 
-def make_node_dict(nodes, inf_nodes, mutation_list, real, mutations=True, n_populations=3):
+def make_node_dict(nodes, inf_nodes, mutation_list, real, n_populations, mutations=True):
     """Creates a dictionary mapping node IDs to their feature vectors
         Args:
             nodes (iterator): Iterator of nodes in tree sequence
@@ -138,13 +138,14 @@ def main():
 
         tree_sequences = zip(real_trees, inf_trees)
         index = 0
-
         for real, inf in tree_sequences:
             ts = tskit.load(real)
             ts_inf = tskit.load(inf)
+            num_populations = ts.num_populations
 
             # make a dictionary for the features of each node
-            node_dict = make_node_dict(ts.nodes(), ts_inf.nodes(), ts.dump_tables().mutations.node, real)
+            node_dict = make_node_dict(ts.nodes(), ts_inf.nodes(), ts.dump_tables().mutations.node, real,
+                                       num_populations)
 
             ts_list = []
             if is_real:
