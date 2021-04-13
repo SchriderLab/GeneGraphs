@@ -12,17 +12,20 @@
 #SBATCH --mail-type=end
 #SBATCH --mail-user=nickmatt@live.unc.edu
 
+# Set SIMG name
+SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
 
-IFILE=$1
-IFILE_VAL=$2
-SEARCH_IDIR=$3
-ODIR=$4
-N_EPOCHS=$5
+main() 
+{
+    IFILE=$1
+    IFILE_VAL=$2
+    CONFIGS_DIR=$3
+    ODIR=$4
+    for config in $CONFIGS_DIR/*; do
+        echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${config} --odir ${ODIR} --verbose
+        singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${config} --odir ${ODIR} --verbose  
+    done
+    echo "done launching jobs!"
+}
 
-mkdir -p ${ODIR}
-
-for config_file in ls $IDIR/*; do 
-# GPU with Singularity
-echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 /src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${config_file} --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose
-singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 /src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${config_file} --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose
-; done
+main $@
