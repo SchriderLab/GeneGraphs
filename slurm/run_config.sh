@@ -23,7 +23,7 @@ main()
     ODIR=$4
     CUT=${CONFIG##*/} # probably a cleaner way to do this but using this to format the output dir
     echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIG} --odir ${ODIR}/${CUT%????} --verbose
-    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${config} --odir ${ODIR}/${CONFIG%????} --verbose  
+    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIG} --odir ${ODIR}/${CUT%????} --verbose 
 }
 
 main $@
