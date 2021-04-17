@@ -10,7 +10,7 @@ Generate some graphs with msprime (Choices of demographic model to simulate are 
 
 You can generate them in parallel with the parallel_sims.sh shell:
 ```
-./slurm/parallel_sims.sh 1000 /proj/dschridelab/output_dir real constant_2pop single_pulse_uni_AB continuous_bi
+slurm/parallel_sims.sh 1000 /proj/dschridelab/output_dir real constant_2pop single_pulse_uni_AB continuous_bi
 ```
 
 Then you have to format the data:
@@ -22,7 +22,7 @@ python3 src/data/format.py --idir test_out/ --ofile test.hdf5
 Alternatively, you can generate and format them simultaneously with the make_simulations.sh shell.
 Example:
 ```
-./make_simulations.sh 1000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
+make_simulations.sh 1000 ./output_dir real constant_2pop single_pulse_uni_AB multi_pulse_bi continuous_uni_AB
 ```
 However, this process is not parallelized (so it is best for small data sizes)
 
