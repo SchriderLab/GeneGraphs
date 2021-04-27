@@ -4,7 +4,8 @@ import torch.nn.functional as F
 import h5py
 import configparser
 from data_on_the_fly_classes import DataGenerator
-from gcn import GCN, Classifier
+from gcn import GCN, Classifier, SequenceClassifier
+import torch.nn as nn
 
 from torch.nn import CrossEntropyLoss, NLLLoss, DataParallel
 from collections import deque
@@ -18,20 +19,16 @@ import numpy as np
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    # my args
+
     parser.add_argument("--verbose", action="store_true", help="display messages")
     parser.add_argument("--ifile", default="None")
     parser.add_argument("--ifile_val", default="None")
     parser.add_argument("--config", default="None")
-
     parser.add_argument("--odir", default="None")
-
     parser.add_argument("--n_epochs", default="5")
     parser.add_argument("--lr", default="None") # lr is specified in configs file
     parser.add_argument("--weight_decay", default="None")
-
-    # parser.add_argument("--in_features", default = "6")
-    # parser.add_argument("--out_features", default = "2")
+    parser.add_argument("--predict_sequences", action="store_true", help="Whether to predict on entire sequences")
 
     args = parser.parse_args()
 
@@ -54,20 +51,25 @@ def parse_args():
 def main():
     args = parse_args()
 
-    # # input features
-    # num_features = int(args.in_features)
-    # # number of classes (demographic models) to predict
-    # out_channels = int(args.out_features)
     config = configparser.ConfigParser()
     config.read(args.config)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = Classifier(config)
-    model.to(device)
+    # model = Classifier(config)
+    batch_size = 5 * int(config.get("mlp_params", "channels").split(",")[-1]) # 5 is num tree sequences per class for a batch
+    input_size = int(config.get("encoder_params", "out_channels").split(",")[-1])
 
     # data generator objects for training and validation respectively
-    generator = DataGenerator(h5py.File(args.ifile, 'r'))
-    validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
+    if args.predict_sequences:
+        generator = DataGenerator(h5py.File(args.ifile, 'r'), sequences=True)
+        validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'), sequences=True)
+        model = SequenceClassifier(config, batch_size, input_size)
+    else:
+        generator = DataGenerator(h5py.File(args.ifile, 'r'))
+        validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
+        model = Classifier(config)
+
+    model.to(device)
 
     # default optimizer for now
     if args.lr != "None":
@@ -82,14 +84,16 @@ def main():
         model.train()
         # change back to 1000
         for j in range(len(generator)):
-            batch, y = generator[j]
+            batch, y, trees_in_sequence = generator[j]
             batch = batch.to(device)
             y = y.to(device)
 
-            # print(y.shape)
-
             optimizer.zero_grad()
-            y_pred = model(batch.x, batch.edge_index, batch.batch)
+
+            if args.predict_sequences:
+                y_pred = model(batch.x, batch.edge_index, batch.batch, trees_in_sequence)
+            else:
+                y_pred = model(batch.x, batch.edge_index, batch.batch)
 
             loss = F.nll_loss(y_pred, y)
 
@@ -119,11 +123,15 @@ def main():
 
         with torch.no_grad():
             for j in range(len(validation_generator)):
-                batch, y = validation_generator[j]
+                batch, y, trees_in_sequence = validation_generator[j]
                 batch = batch.to(device)
                 y = y.to(device)
 
-                y_pred = model(batch.x, batch.edge_index, batch.batch)
+                if args.predict_sequences:
+                    y_pred = model(batch.x, batch.edge_index, batch.batch, trees_in_sequence)
+                else:
+                    y_pred = model(batch.x, batch.edge_index, batch.batch)
+
                 loss = F.nll_loss(y_pred, y)
 
                 y_pred = y_pred.detach().cpu().numpy()
@@ -137,7 +145,6 @@ def main():
         logging.info('root: Epoch {}, Val Loss: {:.3f}, Val Acc: {:.3f}'.format(epoch + 1, np.mean(val_losses), np.mean(val_accs)))
         
         validation_generator.on_epoch_end()
-
 
 
 if __name__ == "__main__":

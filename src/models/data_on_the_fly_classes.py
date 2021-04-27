@@ -1,19 +1,11 @@
-import sys
 import numpy as np
-
 from torch_geometric.data import Data, Batch, DataLoader
 import torch
-
-import sys
-import numpy as np
-
-from torch_geometric.data import Data, Batch, DataLoader
-import torch
-
 import random
 
+
 class DataGenerator(object):
-    def __init__(self, ifile, models = None, n_samples_per = 5):
+    def __init__(self, ifile, sequences=False, models=None, n_samples_per=5):
         if models is None:
             self.models = list(ifile.keys())
         else:
@@ -24,6 +16,9 @@ class DataGenerator(object):
 
         # how many tree sequences from each demographic model are included in a batch?
         self.n_samples_per = n_samples_per
+
+        # if true, we predict on entire tree sequences, otherwise we predict on each tree
+        self.sequences = sequences
 
         # shuffle the keys / make sure they are all there (keys are deleted
         # during training or validation so as not to repeat samples)
@@ -38,6 +33,9 @@ class DataGenerator(object):
         indices = []
         y = []
 
+        # only used if we're training on sequences
+        trees_in_sequence = []
+
         for model in self.models:
             # grab n_samples_per for each model
             for ix in range(self.n_samples_per):
@@ -48,18 +46,23 @@ class DataGenerator(object):
                 skeys = self.ifile[model][key].keys()
 
                 # for each tree
+                i = 0
                 for skey in skeys:
                     X.append(np.array(self.ifile[model][key][skey]['x']))
                     indices.append(np.array(self.ifile[model][key][skey]['edge_index']))
+                    if not self.sequences:
+                        y.append(model_index)
+                    i += 1
+                if self.sequences:
                     y.append(model_index)
-
-        y = torch.LongTensor(np.hstack(y).astype(np.int32))
+                    trees_in_sequence.append(i)
+        y = torch.LongTensor(np.hstack(y).astype(np.float32))
 
         # use PyTorch Geometrics batch object to make one big graph
         batch = Batch.from_data_list(
             [Data(x=torch.FloatTensor(X[k]), edge_index=torch.LongTensor(indices[k])) for k in range(len(indices))])
 
-        return batch, y
+        return batch, y, trees_in_sequence
 
     def on_epoch_end(self):
         self.keys = {model: list(self.ifile[model].keys()) for model in self.models}

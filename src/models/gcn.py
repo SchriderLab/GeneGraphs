@@ -7,6 +7,7 @@ from torch_geometric.nn import global_max_pool, global_add_pool, global_mean_poo
 import configparser
 
 
+# function to create MLP model
 def MLP(channels, batch_norm=True):
     return Seq(*[
         Seq(Lin(channels[i - 1], channels[i]), ReLU(), BN(channels[i]))
@@ -14,6 +15,7 @@ def MLP(channels, batch_norm=True):
     ])
 
 
+# simple GCN model with 2 GC layers and a MLP
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
         super(GCN, self).__init__()
@@ -34,6 +36,8 @@ class GCN(torch.nn.Module):
 
 
 def get_encoder(config):
+    """Takes config file and returns the model that that config file specifies"""
+
     in_channels = [int(x) for x in config.get('encoder_params', 'in_channels').split(',')]
     out_channels = [int(x) for x in config.get('encoder_params', 'out_channels').split(',')]
     if ',' in config.get('encoder_params', 'num_heads'):
@@ -61,6 +65,8 @@ def get_encoder(config):
 
 
 def get_mlp(config):
+    """takes config file and returns the MLP that that file specifies"""
+
     channels = config.get("mlp_params", "channels")
     channels = channels.split(',')
     channels = [int(x) for x in channels]
@@ -68,6 +74,8 @@ def get_mlp(config):
 
 
 def get_pooling(config):
+    """takes config file and returns the pooling layer that that file specifies"""
+
     pool_type = config.get("pooling_params", "pooling_type")
     if pool_type == 'None':
         return None
@@ -76,6 +84,8 @@ def get_pooling(config):
 
 
 def apply_pooling(pooling, x, batch):
+    """given pooling layer type, data, and batch, returns the data with specified pooling applied to it"""
+
     if pooling == 'global_max_pool':
         return global_max_pool(x, batch)
     elif pooling == 'global_add_pool':
@@ -87,6 +97,7 @@ def apply_pooling(pooling, x, batch):
         raise Exception
 
 
+# generic classifier that takes any config file and constructs it
 class Classifier(nn.Module):
     def __init__(self, config):
         super(Classifier, self).__init__()
@@ -99,9 +110,10 @@ class Classifier(nn.Module):
         if self.pooling is not None:
             x = apply_pooling(self.pooling, x, batch)
         x = self.mlp(x)
-        return F.log_softmax(x, dim=1)  # I can make this a general call to any output activation
+        return F.log_softmax(x, dim=1)
 
 
+# Graph Transformer Model called on by a config maker
 class TransformerEncoder(nn.Module):
     def __init__(self, in_channels: list, out_channels: list, depth: int, num_heads=1, edge_dim=None, dropout=0.0):
         super(TransformerEncoder, self).__init__()
@@ -135,6 +147,7 @@ class TransformerEncoder(nn.Module):
         return x
 
 
+# GCN model called on by a config maker
 class GCNEncoder(nn.Module):
     def __init__(self, in_channels: list, out_channels: list, depth: int, normalize=False):
         super(GCNEncoder, self).__init__()
@@ -155,6 +168,7 @@ class GCNEncoder(nn.Module):
         return x
 
 
+# GAT model called on by a config maker
 class GATEncoder(nn.Module):
     def __init__(self, in_channels: list, out_channels: list, depth: int, num_heads, negative_slope=.2, dropout=0.0):
         super(GATEncoder, self).__init__()
@@ -180,3 +194,48 @@ class GATEncoder(nn.Module):
         for layer in self.layers:
             x = layer(x, edge_index).relu()
         return x
+
+
+# in progress for creating generic model for classifying tree sequences via an LSTM
+class SequenceClassifier(nn.Module):
+    def __init__(self, config, batch_size, input_size):
+        super(SequenceClassifier, self).__init__()
+        self.encoder = get_encoder(config)
+        self.pooling = get_pooling(config)
+        self.batch_size = batch_size
+        self.input_size = input_size
+        self.lstm = torch.nn.LSTM(input_size=self.input_size, hidden_size=16, num_layers=32, batch_first=True)
+        self.lstm_pooling = nn.MaxPool1d(3, stride=2)
+        self.relu = nn.ReLU()
+        self.pad_dim_1 = 70 # num of trees in sequence
+        self.linear = nn.Linear(490, 20)
+        self.output = nn.Linear(20, 2)
+
+    def init_hidden(self):
+        return torch.randn(32, self.batch_size, 16), torch.randn(32, self.batch_size, 16)
+
+    def forward(self, x, edge_index, batch, trees_in_sequence, first_batch=False):
+        x = self.encoder(x, edge_index)
+        if self.pooling is not None:
+            x = apply_pooling(self.pooling, x, batch)
+
+        spot = 0
+        tensor_slices = []
+        for i in range(len(trees_in_sequence)):
+            if i == 0:
+                pad_dim_one = self.pad_dim_1 - x[spot:spot+trees_in_sequence[i]].shape[0]
+
+                first_pad = torch.ones((pad_dim_one, 16)) * -1
+                tensor_slices.append(torch.cat((x[spot:spot+trees_in_sequence[i]], first_pad)))
+            else:
+                tensor_slices.append(x[spot:spot+trees_in_sequence[i]])
+            spot += trees_in_sequence[i]
+        padded_sequences = torch.nn.utils.rnn.pad_sequence(tensor_slices, batch_first=True, padding_value=-1.)
+        x_new, _ = self.lstm(padded_sequences, self.init_hidden())
+        x_new = self.lstm_pooling(x_new)
+        x_new = self.relu(x_new)
+        x_new = x_new.reshape(self.batch_size, -1) # this is the key problem. Need it to always be the same size to move to linear
+        x_new = self.linear(x_new)
+        x_new = self.output(x_new)
+        return F.log_softmax(x_new, dim=1)
+
