@@ -54,9 +54,10 @@ def define_params(fixed_params=None):
     if fixed_params and fixed_params['td']:
         td = fixed_params['td']
     else:
-        # original: priors['td'] = (100, 8000)
+        # original:
+        priors['td'] = (100, 8000)
         # changed to the line below:
-        priors['td'] = (4000, 40000)
+        # priors['td'] = (4000, 40000)
         td = selectVal(priors['td'][0], priors['td'][1])
 
     if fixed_params and fixed_params['tm']:
@@ -66,8 +67,8 @@ def define_params(fixed_params=None):
         # priors['tm'] = (0, 1) # comment out for test
         # tm = selectVal(priors['tm'][0], priors['tm'][1]) * td # comment out for test
         priors['tm'] = 1 # temporarily change to priors['tm'] = (0, 1)
-        # tm = td # temporarily changed from tm = selectVal(priors['tm'][0], priors['tm'][1]) * td
-        tm = 0 # changed from above
+        tm = td # temporarily changed from tm = selectVal(priors['tm'][0], priors['tm'][1]) * td
+        # tm = 0 # changed from above
 
     if fixed_params and fixed_params['tm2']:
         tm2 = fixed_params['tm2']

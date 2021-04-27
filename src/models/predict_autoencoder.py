@@ -51,8 +51,8 @@ def main():
     args = parse_args()
 
     demographic_models = []
-    if " " in args.demographic_model:
-        demographic_models = args.demographic_model.split(" ")
+    if "." in args.demographic_model:
+        demographic_models = args.demographic_model.split(".")
     else:
         demographic_models = list(args.demographic_model)
 
@@ -70,6 +70,8 @@ def main():
     # for now we have to just get a sample...even a single batch is too big for CPU RAM
     generator = DataGenerator(h5py.File(args.ifile, 'r'), models=demographic_models)
 
+    plot_count = 0
+
     for ix in range(len(generator)):
         batch, y = generator[ix]
         batch = batch.to(device)
@@ -81,7 +83,8 @@ def main():
             n_nodes = z.shape[0]
 
             if ix % 100 == 1:
-                z_plotting_on_the_fly(z, y, dims=3, reduction='TSNE')
+                z_plotting_on_the_fly(z, y, args.odir, plot_count, dims=3, reduction='PCA')
+                plot_count += 1
 
             edge_index = batch.edge_index.detach().cpu().numpy().astype(np.int32)
             index = batch.batch.detach().cpu().numpy()

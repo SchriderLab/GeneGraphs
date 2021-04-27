@@ -1,8 +1,10 @@
 import os
 import logging, argparse
-import itertools
-import platform
-import random
+
+
+# -------------------------------------------------------- #
+#                   This file is deprecated                #
+# -------------------------------------------------------- #
 
 
 def parse_args():
@@ -28,7 +30,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    cmd = 'sbatch -p general -N 1 --mem 50g -n 1 -t 7-0:00:00 --mail-type=end --mail-user=onyen@email.unc.edu --wrap="python3 ../src/data/simulate_msprime.py --outdir {0}/{1} --id test --length 0.1 --model {2} --replicates {3}"'
+    cmd = 'sbatch -p general -N 1 --mem 50g -n 1 -t 7-0:00:00 --mail-type=end --mail-user=onyen@email.unc.edu --wrap="python3 src/data/simulate_msprime.py --outdir {0}/{1} --id test --length 0.1 --model {2} --replicates {3}"'
     for model in args.models:
         cmd_ = cmd.format(args.odir, model, model, args.replicates)
         print(cmd_)

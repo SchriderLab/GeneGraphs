@@ -5,24 +5,10 @@ from sklearn.manifold import TSNE
 import matplotlib.patches as mpatches
 from mpl_toolkits import mplot3d
 import networkx as nx
-import gmatch4py as gm # added
-
-def graph_comparison(graph1, graph2):
-    ged = gm.GraphEditDistance(1, 1, 1, 1)  # all edit costs are equal to 1
-    result = ged.compare([graph1, graph2], None)
-    return ged.distance(result)
+import os
 
 
-def graph_visualization(graph1, graph2):
-    pass
-    # graphed1 = nx.spring_layout(graph1)
-    # graphed2 = nx.spring_layout(graph2)
-    # nx.draw(graphed1)
-    # nx.draw(graphed2)
-    # plt.show()
-
-
-def z_plotting_on_the_fly(data, y, dims=2, num_classes=2, reduction='PCA'):
+def z_plotting_on_the_fly(data, y, odir, plot_count, dims=2, num_classes=2, reduction='PCA'):
 
     y_plot = []
     cdict = {0: 'red', 1: 'blue', 2: 'green'}
@@ -53,6 +39,7 @@ def z_plotting_on_the_fly(data, y, dims=2, num_classes=2, reduction='PCA'):
     plt.title("{} Demographic Models".format(reduction))
     plt.legend()
     plt.show()
+    plt.savefig(os.path.join(odir, "plot_" + str(plot_count) + ".png"))
 
 
 # deprecated

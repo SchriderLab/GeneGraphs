@@ -1,18 +1,9 @@
 import os
-import sys
-import itertools
-
-import os
 import logging, argparse
-import itertools
-
-import platform
 import h5py
 import tskit
-
 import numpy as np
 import networkx as nx
-
 from torch_geometric.utils.convert import from_networkx
 
 
@@ -24,6 +15,10 @@ def one_hot(i, n_populations=3):
 
 
 def one_hot_mutation(node_id, mutation_list, classes=2):
+    """One hot encodes whether the node has a mutation
+    Returns:
+        np array
+    """
     label = np.zeros(classes)
     if node_id in mutation_list:
         label[0] = 1.
@@ -33,7 +28,9 @@ def one_hot_mutation(node_id, mutation_list, classes=2):
 
 
 def make_node_dict(nodes, inf_nodes, mutation_list, real, n_populations, mutations=True):
-    """Creates a dictionary mapping node IDs to their feature vectors
+    """Creates a dictionary mapping node IDs to their feature vectors. Feature vectors are
+    6-vectors, with dim 0 being a scaled time feature, dims 1-3 being OHE populations, and dims
+    4-5 being OHE whether the node has a mutation
         Args:
             nodes (iterator): Iterator of nodes in tree sequence
             mutation_list (np array): Array of the node IDs containing mutations
@@ -119,7 +116,7 @@ def main():
     # create the output file
     ofile = h5py.File(args.ofile, 'w')
 
-    # if we want to specify specific models to write to disk
+    # if we want to specify specific models to write to disc
     # or use all those that are in the input directory
     if args.models == "None":
         models = os.listdir(args.idir)

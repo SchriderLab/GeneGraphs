@@ -1,8 +1,6 @@
 import os
 import logging, argparse
-import itertools
 
-import platform
 
 def parse_args():
     # Argument Parser
@@ -50,6 +48,7 @@ def main():
 
     print(cmd)
     os.system(cmd)
+
 
 if __name__ == '__main__':
     main()

@@ -1,14 +1,7 @@
 #!/bin/bash
 
-## This is an example of an sbatch script to run a pytorch script
-## using Singularity to run the pytorch image.
-##
-## Set the DATA_PATH to the directory you want the job to run in.
-##
-## On the singularity command line, replace ./test.py with your program
-##
-## Change reserved resources as needed for your job.
-##
+# Trains autoencoder
+# Example: slurm/run_autoencoder.sh train_data.hdf5 val_data.hdf5 autoencoder_output 5 autoencoder_config.txt
 
 #SBATCH --job-name=pytorch
 #SBATCH --ntasks=1
@@ -37,5 +30,5 @@ TAG=test
 mkdir -p ${ODIR}
 
 # GPU with Singularity
-  echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/models/train_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --config ${CONFIG} --tag ${TAG} --verbose
-  singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/models/train_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --config ${CONFIG} --tag ${TAG} --verbose
+  echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_autoencoder.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --config ${CONFIG} --tag ${TAG} --verbose
+  singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_autoencoder.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --odir ${ODIR} --n_epochs ${N_EPOCHS} --config ${CONFIG} --tag ${TAG} --verbose

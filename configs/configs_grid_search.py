@@ -26,9 +26,11 @@ def parse_args():
 
 
 def make_new_grid():
+    # parameters grid params
     return {
         "out_channels": random.randrange(1, 4),
-        "big_out_channels": random.choice([0.5, 1., 1.5, 2.]), # if the model is deep we're reducing the size
+        # if the model is deep we're reducing the size to avoid huge layers
+        "big_out_channels": random.choice([0.5, 1., 1.5, 2.]),
         "depth": random.randint(1, 7),
         "num_heads": random.randint(1, 6),
         "normalize": random.choice([True, False]),
@@ -46,8 +48,10 @@ def make_new_grid():
 def main():
 
     args = parse_args()
+    # iterate through each type of GNN
     for layer_type in args.layer_types:
         grid_search = make_new_grid()
+
         for sampled_config in range(int(args.search_size)):
             in_channels = [int(args.input_size)]
             out_channels = []
@@ -58,8 +62,9 @@ def main():
             depth = grid_search["depth"]
             for i in range(depth):
                 grid_search = make_new_grid()
+
+                # if depth is big we make layer size smaller
                 if depth > 5:
-                    # if depth is big we make layer size smaller
                     out_channels.append(int(grid_search["big_out_channels"]*in_channels[-1]))
                 else:
                     out_channels.append(grid_search["out_channels"]*in_channels[-1])
@@ -85,6 +90,7 @@ def main():
             mlp_channels = [str(x) for x in mlp_channels]
             mlp_channels = ",".join(mlp_channels)
 
+            # write to file in correct configs format
             with open(os.path.join(args.odir, layer_type+"_config"+str(sampled_config+1)+".txt"), "w") as file:
                 file.write("[encoder_params]\n")
                 file.write("in_channels = " + in_channels + "\n")

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Runs config grid search. Probably doesn't need to be used since the grid search is quick on its own.
+
 #SBATCH --job-name=config_run
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1

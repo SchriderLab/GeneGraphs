@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# delete this file
+
 #SBATCH --job-name=GNN_grid_search_launch
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1

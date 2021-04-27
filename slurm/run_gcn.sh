@@ -1,14 +1,7 @@
 #!/bin/bash
 
-## This is an example of an sbatch script to run a pytorch script
-## using Singularity to run the pytorch image.
-##
-## Set the DATA_PATH to the directory you want the job to run in.
-##
-## On the singularity command line, replace ./test.py with your program
-##
-## Change reserved resources as needed for your job.
-##
+# Runs GCN script
+# Example: slurm/run_gcn.sh train.hdf5 val.hdf5 gcn_configs.txt output_dir 5
 
 #SBATCH --job-name=pytorch
 #SBATCH --ntasks=1
