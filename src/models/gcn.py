@@ -209,6 +209,7 @@ class SequenceClassifier(nn.Module):
         self.relu = nn.ReLU()
         self.pad_dim_1 = 70 # num of trees in sequence
         self.linear = nn.Linear(490, 20)
+        self.batch_norm = nn.BatchNorm1d(20)
         self.output = nn.Linear(20, 2)
 
     def init_hidden(self):
@@ -229,13 +230,15 @@ class SequenceClassifier(nn.Module):
                 tensor_slices.append(torch.cat((x[spot:spot+trees_in_sequence[i]], first_pad)))
             else:
                 tensor_slices.append(x[spot:spot+trees_in_sequence[i]])
+
             spot += trees_in_sequence[i]
-        padded_sequences = torch.nn.utils.rnn.pad_sequence(tensor_slices, batch_first=True, padding_value=-1.)
-        x_new, _ = self.lstm(padded_sequences, self.init_hidden())
+        x_new = torch.nn.utils.rnn.pad_sequence(tensor_slices, batch_first=True, padding_value=-1.)
+        x_new, _ = self.lstm(x_new, self.init_hidden())
         x_new = self.lstm_pooling(x_new)
         x_new = self.relu(x_new)
-        x_new = x_new.reshape(self.batch_size, -1) # this is the key problem. Need it to always be the same size to move to linear
+        x_new = x_new.reshape(self.batch_size, -1)
         x_new = self.linear(x_new)
+        x_new = self.batch_norm(x_new)
         x_new = self.output(x_new)
         return F.log_softmax(x_new, dim=1)
 

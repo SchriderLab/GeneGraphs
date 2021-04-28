@@ -99,6 +99,8 @@ def main():
 
             y_pred = y_pred.detach().cpu().numpy()
             y = y.detach().cpu().numpy()
+            if j == len(generator) - 1:
+                print(y_pred)
 
             y_pred = np.argmax(y_pred, axis=1)
             accuracies.append(accuracy_score(y, y_pred))
