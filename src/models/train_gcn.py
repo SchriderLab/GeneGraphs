@@ -55,6 +55,7 @@ def main():
     config.read(args.config)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print("Using " + str(device) + " as device")
     # model = Classifier(config)
     batch_size = 5 * int(config.get("mlp_params", "channels").split(",")[-1]) # 5 is num tree sequences per class for a batch
     input_size = int(config.get("encoder_params", "out_channels").split(",")[-1])
@@ -69,7 +70,7 @@ def main():
         validation_generator = DataGenerator(h5py.File(args.ifile_val, 'r'))
         model = Classifier(config)
 
-    model.to(device)
+    model = model.to(device)
 
     # default optimizer for now
     if args.lr != "None":
@@ -82,27 +83,24 @@ def main():
 
     for epoch in range(int(args.n_epochs)):
         model.train()
-        # change back to 1000
         for j in range(len(generator)):
-            batch, y, trees_in_sequence = generator[j]
+            batch, y, trees_in_sequence, ranges = generator[j]
             batch = batch.to(device)
             y = y.to(device)
 
             optimizer.zero_grad()
 
             if args.predict_sequences:
-                y_pred = model(batch.x, batch.edge_index, batch.batch, trees_in_sequence)
+                y_pred = model(batch.x, batch.edge_index, batch.batch, trees_in_sequence, device, ranges)
             else:
                 y_pred = model(batch.x, batch.edge_index, batch.batch)
 
             loss = F.nll_loss(y_pred, y)
 
             y_pred = y_pred.detach().cpu().numpy()
-            y = y.detach().cpu().numpy()
-            if j == len(generator) - 1:
-                print(y_pred)
-
             y_pred = np.argmax(y_pred, axis=1)
+            y = y.detach().cpu().numpy()
+
             accuracies.append(accuracy_score(y, y_pred))
 
             losses.append(loss.detach().item())
@@ -130,7 +128,7 @@ def main():
                 y = y.to(device)
 
                 if args.predict_sequences:
-                    y_pred = model(batch.x, batch.edge_index, batch.batch, trees_in_sequence)
+                    y_pred = model(batch.x, batch.edge_index, batch.batch, trees_in_sequence, device, ranges)
                 else:
                     y_pred = model(batch.x, batch.edge_index, batch.batch)
 
@@ -138,7 +136,6 @@ def main():
 
                 y_pred = y_pred.detach().cpu().numpy()
                 y = y.detach().cpu().numpy()
-
                 y_pred = np.argmax(y_pred, axis=1)
 
                 val_accs.append(accuracy_score(y, y_pred))

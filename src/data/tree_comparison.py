@@ -3,6 +3,8 @@ import argparse
 import os
 import random
 
+# Remove this file
+
 
 def parse_arguments():
     # Argument Parser

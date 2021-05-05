@@ -75,6 +75,24 @@ def make_node_dict(nodes, inf_nodes, mutation_list, real, n_populations, mutatio
     return ret
 
 
+def get_tree_intervals(tree_sequence):
+    """
+    Takes in a tree sequence and returns the percent coverage of each tree in the sequence
+    :param tree_sequence: A full tree sequence
+    :return ranges (list) : list of floats of the percentage of the tree sequence made up by each tree
+    """
+    r_prev = 0
+    ranges = []
+    length = tree_sequence.sequence_length
+    iterator = tree_sequence.trees()
+    for tree in iterator:
+        _, r = tree.interval
+        diff = (r - r_prev) / length
+        ranges.append(diff)
+        r_prev = r
+    return ranges
+
+
 def parse_args():
     # Argument Parser
     parser = argparse.ArgumentParser()
@@ -147,23 +165,29 @@ def main():
             ts_list = []
             if is_real:
                 ts_list = ts.aslist()
+                ranges = get_tree_intervals(ts)
             else:
                 ts_list = ts_inf.aslist()
+                ranges = get_tree_intervals(ts_inf)
 
             s_index = 0
 
             # for each tree store topology and node features as x and edge_index respectively
-            for tree in ts_list:
+            for i, tree in enumerate(ts_list):
+
+                tree_range = ranges[i]
+
                 G = nx.DiGraph(tree.as_dict_of_dicts())
                 x = np.array([node_dict[u] for u in G.nodes()])
 
                 data = from_networkx(G)
                 ix = data.edge_index.detach().cpu().numpy()
 
-                ofile.create_dataset('{0}/{1}/{2}/x'.format(model, index, s_index), data = x,
+                ofile.create_dataset('{0}/{1}/{2}/x'.format(model, index, s_index), data=x,
                                      compression='lzf')
-                ofile.create_dataset('{0}/{1}/{2}/edge_index'.format(model, index, s_index), data = ix,
+                ofile.create_dataset('{0}/{1}/{2}/edge_index'.format(model, index, s_index), data=ix,
                                      compression='lzf')
+                ofile.create_dataset('{0}/{1}/{2}/tree_range'.format(model, index, s_index), data=tree_range)
 
                 s_index += 1
 

@@ -30,5 +30,10 @@ N_EPOCHS=$5
 mkdir -p ${ODIR}
 
 # GPU with Singularity
-echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose
-singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose
+if [[ "$6" == "" ]]; then
+  echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose
+  singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose
+else
+  echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py  --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose --predict_sequences
+  singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 src/models/train_gcn.py --ifile ${IFILE} --ifile_val ${IFILE_VAL} --config ${CONFIGS}  --odir ${ODIR} --n_epochs ${N_EPOCHS} --verbose --predict_sequences
+fi

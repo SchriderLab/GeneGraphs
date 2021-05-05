@@ -5,6 +5,7 @@ from torch_geometric.nn import TransformerConv, GCNConv, GATConv
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU, BatchNorm1d as BN, Dropout
 from torch_geometric.nn import global_max_pool, global_add_pool, global_mean_pool
 import configparser
+import numpy as np
 
 
 # function to create MLP model
@@ -109,6 +110,7 @@ class Classifier(nn.Module):
         x = self.encoder(x, edge_index)
         if self.pooling is not None:
             x = apply_pooling(self.pooling, x, batch)
+        """ data is put into (num_trees_in_batch, embedding_dim) """
         x = self.mlp(x)
         return F.log_softmax(x, dim=1)
 
@@ -210,18 +212,40 @@ class SequenceClassifier(nn.Module):
         self.pad_dim_1 = 70 # num of trees in sequence
         self.linear = nn.Linear(490, 20)
         self.batch_norm = nn.BatchNorm1d(20)
-        self.output = nn.Linear(20, 2)
+        self.output = nn.Linear(20, 10) # need this to output num classes
 
     def init_hidden(self):
         return torch.randn(32, self.batch_size, 16), torch.randn(32, self.batch_size, 16)
 
-    def forward(self, x, edge_index, batch, trees_in_sequence, first_batch=False):
+    def repeat_trees(self, tensor_slices, ranges, pad_size):
+        """ This function is incomplete and does not produce the correct
+            output. It attempts to pad sequences by repeating trees based
+            on their coverage over the sequence, rather than padding with
+            merely a certain integer like -1 as is currently implemented"""
+        new_tensor_slices = []
+        for sequence, range_array in zip(tensor_slices, ranges):
+            new_sequence = torch.tensor([])
+            for i, (tree, tree_range) in enumerate(zip(sequence, range_array)):
+                for repeat in range(int(tree_range * pad_size)+1):
+                    if i == 0 and repeat == 0:
+                        new_sequence = tree
+                    else:
+                        new_sequence = torch.vstack((new_sequence, tree))
+            new_tensor_slices.append(new_sequence)
+        for t1, t2 in zip(tensor_slices, new_tensor_slices):
+            print("old: " + str(t1.shape))
+            print("new: " + str(t2.shape))
+
+        return new_tensor_slices
+
+    def forward(self, x, edge_index, batch, trees_in_sequence, device, ranges, first_batch=False):
         x = self.encoder(x, edge_index)
         if self.pooling is not None:
             x = apply_pooling(self.pooling, x, batch)
 
         spot = 0
         tensor_slices = []
+
         for i in range(len(trees_in_sequence)):
             if i == 0:
                 pad_dim_one = self.pad_dim_1 - x[spot:spot+trees_in_sequence[i]].shape[0]
@@ -230,9 +254,14 @@ class SequenceClassifier(nn.Module):
                 tensor_slices.append(torch.cat((x[spot:spot+trees_in_sequence[i]], first_pad)))
             else:
                 tensor_slices.append(x[spot:spot+trees_in_sequence[i]])
+            # tensor_slices.append(x[spot:spot + trees_in_sequence[i]])
 
             spot += trees_in_sequence[i]
-        x_new = torch.nn.utils.rnn.pad_sequence(tensor_slices, batch_first=True, padding_value=-1.)
+
+        # repeat_trees = self.repeat_trees(tensor_slices, ranges, self.pad_dim_1)
+
+        """ data is put into (50, 70, x) or (batch_size, padded_num_trees, features_per_tree) """
+        x_new = torch.nn.utils.rnn.pad_sequence(tensor_slices, batch_first=True, padding_value=-1.).to(device)
         x_new, _ = self.lstm(x_new, self.init_hidden())
         x_new = self.lstm_pooling(x_new)
         x_new = self.relu(x_new)

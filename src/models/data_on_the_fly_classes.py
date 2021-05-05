@@ -33,6 +33,8 @@ class DataGenerator(object):
         indices = []
         y = []
 
+        ranges = []
+
         # only used if we're training on sequences
         trees_in_sequence = []
 
@@ -47,22 +49,30 @@ class DataGenerator(object):
 
                 # for each tree
                 i = 0
+                tree_ranges = np.array([])
                 for skey in skeys:
                     X.append(np.array(self.ifile[model][key][skey]['x']))
                     indices.append(np.array(self.ifile[model][key][skey]['edge_index']))
+                    tree_ranges = np.append(tree_ranges, self.ifile[model][key][skey]["tree_range"])
+
                     if not self.sequences:
                         y.append(model_index)
+
                     i += 1
+
                 if self.sequences:
                     y.append(model_index)
                     trees_in_sequence.append(i)
+
+                ranges.append(tree_ranges)
+
         y = torch.LongTensor(np.hstack(y).astype(np.float32))
 
         # use PyTorch Geometrics batch object to make one big graph
         batch = Batch.from_data_list(
             [Data(x=torch.FloatTensor(X[k]), edge_index=torch.LongTensor(indices[k])) for k in range(len(indices))])
 
-        return batch, y, trees_in_sequence
+        return batch, y, trees_in_sequence, ranges
 
     def on_epoch_end(self):
         self.keys = {model: list(self.ifile[model].keys()) for model in self.models}
