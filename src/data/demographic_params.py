@@ -18,7 +18,7 @@ def define_params(fixed_params=None):
     if fixed_params and fixed_params['u']:
         u = fixed_params['u']
     else:
-        u = 1.2e-8 / 10
+        u = 1.2e-8
     r = 1e-8 # change to 1e-11
 
     if fixed_params and fixed_params['N0']:

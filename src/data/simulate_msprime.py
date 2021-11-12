@@ -253,13 +253,13 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
             with open(ms_file, 'a') as f:
                 f.write('\n//\t{}\n'.format(params))
                 f.write('segsites: {}\n'.format(n_snps))
-                f.write('positions: {}\n'.format(' '.join(str(e) for e in positions.tolist())))
+                f.write('positions: {}\n'.format(' '.join(str(int(e * tree_sequence.sequence_length)) for e in positions.tolist())))
                 for indiv in tree_constant_np_matrix.tolist():
                     genotypes = ''.join(str(e) for e in indiv)
                     f.write('{}\n'.format(genotypes))
 
         with tsinfer.SampleData(
-                path=os.path.join(out_dir, "inferred{0}.samples".format(j)),
+                path=os.path.join(out_dir, "inferred{0:06d}.samples".format(j)),
                 sequence_length=tree_sequence.sequence_length,
                 num_flush_threads=2) as sample_data:
             # do we only want to iterate through the variants?
@@ -271,15 +271,14 @@ def sim_locus(model_func, L, in_params, param_file_path, j, out_file_path, max_s
 
             inferred_ts = tsinfer.infer(sample_data)
 
-    filename = '{}_{}.npz'.format(out_file_path, j)
+    filename = '{}_{:06d}.npz'.format(out_file_path, j)
 
     print('save tree_sequence to file {}\n'.format(filename))
-    try:
-        np.savez_compressed(filename, X=tree_constant_np_matrix, y=y, z=label, p=positions)
-        tree_sequence.dump('{}_{:06d}.ts'.format(out_file_path, j))
-        inferred_ts.dump('{}_{:06d}_inferred.ts'.format(out_file_path, j))
-    except:
-        pass
+
+    np.savez_compressed(filename, X=tree_constant_np_matrix, y=y, z=label, p=positions)
+    tree_sequence.dump('{}_{:06d}.ts'.format(out_file_path, j))
+    
+    inferred_ts.dump('{}_{:06d}_inferred.ts'.format(out_file_path, j))
 
     return max_snps
 
@@ -337,6 +336,8 @@ def main():
     sys.stderr.write('starting simulations\n')
 
     out_dir, param_dir, sim_id, L, num_replicates, model_func, locus_replicates, fixed_params, msout, model, inferred = parse_arguments()
+    # force msout all the time now
+    msout = True
 
     creatDir(out_dir)
     creatDir(param_dir)
