@@ -89,7 +89,7 @@ def main():
         odir_relate = os.path.join(args.odir, msFile.split('/')[-2] + '_relate')
         
         # make a folder for the relate output files to go into
-        os.system('mkdir -p {}'.format(odir_ms))
+        os.system('mkdir -p {}'.format(odir_relate))
         
         x, y, positions = load_data(msFile, ancFile)
         
@@ -141,6 +141,7 @@ def main():
                                      ms_file.split('.')[0] + '.sample', ms_file.split('.')[0] + '.map', 
                                      ms_file.split('/')[-1].split('.')[0])
             os.system(cmd_)
+            
             os.system('mv {0}* {1}'.format(ms_file.split('/')[-1].split('.')[0], odir_relate))
             
             
