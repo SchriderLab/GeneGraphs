@@ -74,7 +74,10 @@ def main():
     pop_size = sum(pop_sizes)
     
     L = float(args.L)  
+    
     r = float(args.r)
+    
+    
     mu = float(args.mu)
 
     for ix in range(len(msFiles)):
@@ -94,9 +97,9 @@ def main():
         x, y, positions = load_data(msFile, ancFile)
         
         for ij in range(len(x)):
-            x_ = x[ix]
-            y_ = y[ix]
-            pos = positions[ix]
+            x_ = x[ij]
+            y_ = y[ij]
+            pos = positions[ij]
             
             
             logging.info('{},{}'.format(x_.shape, y_.shape))
