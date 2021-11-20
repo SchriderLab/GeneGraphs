@@ -120,6 +120,8 @@ def main():
             ms_file = os.path.join(odir_ms, '{0:05d}_{1:05d}.ms'.format(ix, ij))
             write_ms(x_, pos, ms_file)
             
+            np.savez(os.path.join(odir_ms, '{0:05d}_{1:05d}.npz'.format(ix, ij), x = x_, y = y_, positions = pos)
+            
             cmd_ = rcmd.format(ms_file, ms_file.split('.')[0])
             os.system(cmd_)
             
