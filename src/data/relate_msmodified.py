@@ -74,10 +74,7 @@ def main():
     pop_size = sum(pop_sizes)
     
     L = float(args.L)  
-    
     r = float(args.r)
-    
-    
     mu = float(args.mu)
 
     for ix in range(len(msFiles)):
@@ -114,8 +111,8 @@ def main():
                 continue
             
             # write the ms file
-            x_ = x_[:300,:]
-            y_ = y_[:300,:]
+            #x_ = x_[:300,:]
+            #y_ = y_[:300,:]
             
             ms_file = os.path.join(odir_ms, '{0:05d}_{1:05d}.ms'.format(ix, ij))
             write_ms(x_, pos, ms_file)

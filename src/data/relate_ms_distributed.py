@@ -13,8 +13,12 @@ def parse_args():
     # my args
     parser.add_argument("--verbose", action = "store_true", help = "display messages")
     parser.add_argument("--idir", default = "/proj/dschridelab/rrlove/ag1000g/data/ms/ms_modified/training/output/no_introgression/out_110421/out_110421_18_6")
+    parser.add_argument("--mu", default = "5.0e-9") # mutation rate
+    parser.add_argument("--L", default = "10000")
+    parser.add_argument("--r", default = "1e-8")
 
     parser.add_argument("--odir", default = "None")
+    
     args = parser.parse_args()
 
     if args.verbose:
@@ -34,11 +38,11 @@ def parse_args():
 def main():
     args = parse_args()
     
-    cmd = 'sbatch -n 4 --mem 4G -t 2-00:00:00 --wrap "python3 src/data/relate_msmodified.py --idir {0} --odir {1}"'
+    cmd = 'sbatch -n 4 --mem 4G -t 2-00:00:00 --wrap "python3 src/data/relate_msmodified.py --idir {0} --odir {1} --L {2} --mu {3} --r {4}"'
 
     idirs = [os.path.join(args.idir, u) for u in os.listdir(args.idir) if not 'seedms' in u]
     for idir in idirs:
-        cmd_ = cmd.format(idir, args.odir)
+        cmd_ = cmd.format(idir, args.odir, args.L, args.mu, args.r)
         
         print(cmd_)
         os.system(cmd_)
