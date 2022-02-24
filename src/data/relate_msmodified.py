@@ -9,7 +9,6 @@ import numpy as np
 from data_functions import load_data
 
 def write_ms(x, pos, ofile):
-    print(pos)
     pos = (pos * 10000).astype(np.int32)
     
     ofile = open(ofile, 'w')
@@ -97,7 +96,7 @@ def main():
         
         x, y, positions = load_data(msFile, ancFile)
         
-        for ij in range(len(x)):
+        for ij in range(1):
             x_ = x[ij]
             y_ = y[ij]
             pos = positions[ij]
@@ -146,8 +145,9 @@ def main():
             cmd_ = relate_cmd.format(mu, L, ms_file.split('.')[0] + '.haps', 
                                      ms_file.split('.')[0] + '.sample', ms_file.split('.')[0] + '.map', 
                                      ms_file.split('/')[-1].split('.')[0])
-            os.system(cmd_)
+            print(cmd_)
             
+            os.system(cmd_)
             os.system('mv {0}* {1}'.format(ms_file.split('/')[-1].split('.')[0], odir_relate))
             
             
