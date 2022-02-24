@@ -67,8 +67,9 @@ def main():
     msFiles = sorted(glob.glob(os.path.join(args.idir, '*.txt')))
     if len(msFiles) == 0:
         msFiles = sorted(glob.glob(os.path.join(args.idir, '*.msOut')))
-    
-    ancFiles = [u.replace('txt', 'anc') for u in msFiles]
+        ancFiles = [os.path.join(args.idir, 'out.anc')]
+    else:
+        ancFiles = [u.replace('txt', 'anc') for u in msFiles]
     
     rcmd = 'Rscript ms2haps.R {0} {1}'
     relate_cmd = 'relate/bin/Relate --mode All -m {0} -N {1} --haps {2} --sample {3} --map {4} --output {5}'
