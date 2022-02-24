@@ -96,7 +96,7 @@ def main():
         
         x, y, positions = load_data(msFile, ancFile)
         
-        for ij in range(1):
+        for ij in range(len(x)):
             x_ = x[ij]
             y_ = y[ij]
             pos = positions[ij]
