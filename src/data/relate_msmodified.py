@@ -65,6 +65,9 @@ def main():
     args = parse_args()
     
     msFiles = sorted(glob.glob(os.path.join(args.idir, '*.txt')))
+    if len(msFiles) == 0:
+        msFiles = sorted(glob.glob(os.path.join(args.idir, '*.msOut')))
+    
     ancFiles = [u.replace('txt', 'anc') for u in msFiles]
     
     rcmd = 'Rscript ms2haps.R {0} {1}'
