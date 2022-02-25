@@ -39,11 +39,11 @@ def parse_args():
 def main():
     args = parse_args()
     
-    cmd = 'sbatch -n 4 --mem 8G -t 2-00:00:00 -o {6} --wrap "module load gcc/11.2.0 && python3 src/data/relate_msmodified.py --idir {0} --odir {1} --L {2} --mu {3} --r {4} --pop_sizes {5}"'
+    cmd = 'sbatch -n 4 --mem 16G -t 2-00:00:00 -o {6} --wrap "module load gcc/11.2.0 && python3 src/data/relate_msmodified.py --idir {0} --odir {1} --L {2} --mu {3} --r {4} --pop_sizes {5}"'
 
     idirs = [os.path.join(args.idir, u) for u in os.listdir(args.idir) if not 'seedms' in u]
     for idir in idirs:
-        cmd_ = cmd.format(idir, args.odir, args.L, args.mu, args.r, args.pop_sizes, idir + '.slurm.out')
+        cmd_ = cmd.format(idir, args.odir, args.L, args.mu, args.r, args.pop_sizes, idir + 'relate.slurm.out')
         
         print(cmd_)
         os.system(cmd_)
