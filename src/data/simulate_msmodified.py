@@ -10,6 +10,8 @@ from data_functions import writeTbsFile
 import copy
 import subprocess
 
+import itertools
+
 # this function creates an array for writing to text that has the ms parameters
 # from a CSV file produced via bootstrapped DADI runs
 # the values expected in the CSV our given below
@@ -88,7 +90,7 @@ def main():
     alpha1 = np.linspace(0., 1., int(args.n_grid_points))
     m12 = np.linspace(0.01, 0.5, int(args.n_grid_points))
     
-    todo = list(zip(N, alpha0, alpha1, m12))
+    todo = list(itertools.product(N, alpha0, alpha1, m12))
     
     ms_cmd = 'mkdir -p {6} && cd {6} && {7} 64 {0} -T -t {1} -I 2 32 32 -eg 0.0 1 {2} -eg 0.0 2 {3} -m 1 2 {4} | tee {5} && gzip mig.msOut'
     
@@ -102,7 +104,9 @@ def main():
         cmd_ = ms_cmd.format(int(args.n_samples), 4*n*mu, a1, a2, m, 'mig.msOut', odir, os.path.join(os.getcwd(), 'msdir/ms'))
         print(cmd_)
         
-        os.system(cmd_)
+        # New process, connected to the Python interpreter through pipes:
+        prog = subprocess.Popen(cmd_, shell = True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        prog.communicate()
         
             
 if __name__ == '__main__':
