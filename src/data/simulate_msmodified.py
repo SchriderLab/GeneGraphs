@@ -86,8 +86,8 @@ def main():
     
     mu = 1e-4
     N = np.linspace(5000, 10000, int(args.n_grid_points))
-    alpha0 = np.linspace(0., 1., int(args.n_grid_points))
-    alpha1 = np.linspace(0., 1., int(args.n_grid_points))
+    alpha0 = np.linspace(0.05, 0.2, int(args.n_grid_points))
+    alpha1 = np.linspace(0.05, 0.2, int(args.n_grid_points))
     m12 = np.linspace(0.1, 0.5, int(args.n_grid_points))
     
     todo = list(itertools.product(N, alpha0, alpha1, m12))
