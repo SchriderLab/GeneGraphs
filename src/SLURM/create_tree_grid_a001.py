@@ -54,6 +54,7 @@ def main():
         cmd_ = cmd.format(n, a1, a2, m, ofile)
         
         print(cmd_)
+        os.system(cmd_)
         
     # ${code_blocks}
 
