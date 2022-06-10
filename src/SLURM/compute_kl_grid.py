@@ -38,7 +38,7 @@ def main():
     ifiles = os.listdir(args.idir)
     N = len(ifiles)
     
-    cmd = 'sbatch -t 12:00:00 --mem=8G --wrap "python3 src/compute_kl_matrix.py --idir {0} --i {1} --ofile {2}"'
+    cmd = 'sbatch -t 12:00:00 --mem=8G --wrap "python3 src/data/compute_kl_matrix.py --idir {0} --i {1} --ofile {2}"'
     
     for ix in range(N):
         cmd_ = cmd.format(args.idir, ix, os.path.join(args.odir, '{0:06d}.npz'.format(ix)))
