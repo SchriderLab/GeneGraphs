@@ -146,6 +146,8 @@ def parse_args():
     parser.add_argument("--sample_sizes", default = "32,32")
     parser.add_argument("--idir", default = "None")
     parser.add_argument("--i", default = "None")
+    
+    
 
     parser.add_argument("--ofile", default = "test.npz")
     args = parser.parse_args()
@@ -169,7 +171,7 @@ def main():
     sample_sizes = tuple(map(int, args.sample_sizes.split(',')))
     s1, s2 = sample_sizes
 
-    ret = np.zeros(len(ifiles))
+    ret = np.zeros(512)
     trees = np.load(ifiles[ix], allow_pickle = True)
     
     n, a1, a2, m = tuple(trees['loc'])
@@ -225,8 +227,8 @@ def main():
     p = np.array(p)
         
 
-    ii = list(set(list(range(len(ifiles)))).difference([ix]))
-    for ij in ii:
+    ii = sorted(list(set(list(range(len(ifiles)))).difference([ix])))
+    for ij in ii[:511]:
         logging.info('getting probabilities for q_i = {}...'.format(ij))
         trees_ = np.load(ifiles[ij], allow_pickle = True)
         
@@ -277,9 +279,6 @@ def main():
                 
             
             q.append(logP)
-            if logP == np.nan:
-                break
-            
         
         q = np.array(q)
         ii = list(np.where(np.isnan(q))[0])
