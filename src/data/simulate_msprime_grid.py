@@ -222,6 +222,8 @@ def main():
         order = list(range(2 * n_sample - 1))
         order[:s1 + s2] = (pop1 + pop2)
         
+        A_ = A_[np.ix_(order, order)]
+
         ages = tables.nodes.time
         pops = tables.nodes.population
         individuals = list(range(len(pops)))
