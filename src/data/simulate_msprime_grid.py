@@ -16,6 +16,14 @@ import copy
 import random
 import pickle
 
+from io import StringIO
+from skbio import read
+from skbio.tree import TreeNode
+import matplotlib.pyplot as plt
+
+
+import sys
+
 def nC2(n):
     return n * (n - 1) / 2
 
@@ -70,17 +78,17 @@ def prob_a001_coal(i, a0, a1, m, t0, t1, N, n1, n2):
     
     if i == 0:
         if n2 > 1:
-            return f_a001_coal(a0, N * np.exp(-a0 * t0), t) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1) - 1) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2)) * (1 - F_a001_mig(a0, a1, m,  N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** n1
+            return F_a001_coal(a0, N * np.exp(-a0 * t0), t) * f_a001_coal(a0, N * np.exp(-a0 * t0), t) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1) - 1) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2)) * (1 - F_a001_mig(a0, a1, m,  N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** n1
         else:
-            return f_a001_coal(a0, N * np.exp(-a0 * t0), t) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1) - 1) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** n1
+            return F_a001_coal(a0, N * np.exp(-a0 * t0), t) * f_a001_coal(a0, N * np.exp(-a0 * t0), t) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1) - 1) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** n1
     else:
         if n1 > 1:
-            return f_a001_coal(a1, N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2) - 1) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1)) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** n1
+            return F_a001_coal(a1, N * np.exp(-a0 * t0), t) * f_a001_coal(a1, N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2) - 1) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1)) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** n1
         elif n1 == 1:
-            return f_a001_coal(a1, N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2) - 1) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0), N * np.exp(-a1 * t0), t)) ** n1
+            return F_a001_coal(a1, N * np.exp(-a0 * t0), t) * f_a001_coal(a1, N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2) - 1) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0), N * np.exp(-a1 * t0), t)) ** n1
         else:
             if n2 > 2:
-                return f_a001_coal(a1, N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2) - 1)
+                return F_a001_coal(a0, N * np.exp(-a0 * t0), t) * f_a001_coal(a1, N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2) - 1)
             else:
                 return f_a001_coal(a1, N * np.exp(-a1 * t0), t)
         
@@ -88,13 +96,13 @@ def prob_a001_mig(a0, a1, m, t0, t1, N, n1, n2):
     t = t1 - t0
     
     if n2 >= 2 and n1 >= 2:
-        return f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2)) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1)) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** (n1 - 1)
+        return F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2)) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1)) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** (n1 - 1)
     elif n2 >= 2 and n1 == 1:
-        return f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2))
+        return F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a1, N * np.exp(-a1 * t0), t)) ** (nC2(n2))
     elif n2 == 1 and n1 == 1:
         return f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)
     elif n2 == 1 and n1 >= 2:
-        return f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1)) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** (n1 - 1)
+        return F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * f_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t) * (1 - F_a001_coal(a0, N * np.exp(-a0 * t0), t)) ** (nC2(n1)) * (1 - F_a001_mig(a0, a1, m, N * np.exp(-a0 * t0),  N * np.exp(-a1 * t0), t)) ** (n1 - 1)
 
 def prob_a001_first(a0, a1, m, N, t, dt, n0, n1):
     # a0 > 0. = growth rate for pop0
@@ -162,6 +170,7 @@ def main():
     m = float(args.m)
     
     E = []
+    A = []
     for j in range(int(args.n_replicates)):
         demography = msprime.Demography()
         demography.add_population(name="A", initial_size = n)
@@ -176,6 +185,42 @@ def main():
         
         tables = s.dump_tables()
         tables.sort()
+        
+        t = list(s.aslist())[0]
+        
+        f = StringIO(t.as_newick())  
+        t_ = read(f, format="newick", into=TreeNode)
+        
+        n_sample = s1 + s2
+        
+        ix = n_sample + 1
+        order = []
+                
+        for node in t_.levelorder():
+            if node.name is None:
+                node.name = ix
+                ix += 1
+                
+            if type(node.name) == str:
+                node.name = int(node.name.replace('n', '')) - 1
+            else:
+                node.name = node.name - 1
+            order.append(node.name)
+            
+        A_ = np.zeros((2*n_sample - 1, 2*n_sample - 1))
+        for node in t_.levelorder():
+            for u in node.children:
+                A_[node.name, u.name] = u.length
+                A_[u.name, node.name] = u.length
+            
+        pop1 = list(range(s1))
+        pop2 = list(range(s1, s1 + s2))
+        
+        pop1 = [u for u in order if u in pop1]
+        pop2 = [u for u in order if u in pop2]
+        
+        order = list(range(2 * n_sample - 1))
+        order[:s1 + s2] = (pop1 + pop2)
         
         ages = tables.nodes.time
         pops = tables.nodes.population
@@ -215,8 +260,9 @@ def main():
             
         events = sorted(migs + coals, key = lambda u: u[1])
         E.append(events)
+        A.append(A_)
         
-    np.savez_compressed(args.ofile, E = np.array(E, dtype = object), loc = np.array([n, a1, a2, m]))
+    np.savez_compressed(args.ofile, E = np.array(E, dtype = object), A = np.array(A), loc = np.array([n, a1, a2, m]))
         
     """
     pop_sizes = [s1, s2]
