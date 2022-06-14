@@ -193,7 +193,7 @@ def main():
         
         n_sample = s1 + s2
         
-        ix = n_sample + 1
+        ix = n_sample
         order = []
                 
         for node in t_.levelorder():
@@ -202,9 +202,8 @@ def main():
                 ix += 1
                 
             if type(node.name) == str:
-                node.name = int(node.name.replace('n', '')) - 1
-            else:
-                node.name = node.name - 1
+                node.name = int(node.name.replace('n', ''))
+
             order.append(node.name)
             
         A_ = np.zeros((2*n_sample - 1, 2*n_sample - 1))
@@ -218,6 +217,7 @@ def main():
         
         pop1 = [u for u in order if u in pop1]
         pop2 = [u for u in order if u in pop2]
+
         
         order = list(range(2 * n_sample - 1))
         order[:s1 + s2] = (pop1 + pop2)
